@@ -1,0 +1,227 @@
+{
+  "main": {
+    "id": "df64c3500f31e022",
+    "type": "split",
+    "children": [
+      {
+        "id": "8d8f07de07be5ac6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4c686d11e61a881d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Índice.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Índice"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "934f250c556433ac",
+    "type": "split",
+    "children": [
+      {
+        "id": "a3e08837d33ad657",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "82bb722ee4165d31",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de archivos"
+            }
+          },
+          {
+            "id": "01e745cea3629471",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Buscar"
+            }
+          },
+          {
+            "id": "7510003c411ade69",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "49c54911af9e2bed",
+    "type": "split",
+    "children": [
+      {
+        "id": "2a3c728ba713febe",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f634cdb92851b838",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Índice.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Enlaces entrantes"
+            }
+          },
+          {
+            "id": "9e14be31bc738fee",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Índice.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Enlaces salientes"
+            }
+          },
+          {
+            "id": "c279d1010c763e7a",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "bd43564568cc5b68",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas las propiedades"
+            }
+          },
+          {
+            "id": "78b981f4ff2093a8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Índice.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Esquema"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir selector rápido": false,
+      "graph:Abrir vista gráfica": false,
+      "canvas:Crear nuevo lienzo": false,
+      "daily-notes:Abrir la nota de hoy": false,
+      "templates:Insertar plantilla": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Crear nueva base": false
+    }
+  },
+  "active": "4c686d11e61a881d",
+  "lastOpenFiles": [
+    "Datos/Datos — Abogados.md",
+    "Índice.md",
+    "Vistas/Postulaciones.md",
+    "Vistas/Vista Practicante.md",
+    "Datos/Datos — Abogados.md.tmp.9044.22b33784fc27",
+    "Datos/Datos — Consultorios.md",
+    "Datos/Datos — Consultorios.md.tmp.9044.d573cb406c82",
+    "Vistas/Vista Abogado.md",
+    "Vistas/Vista Abogado.md.tmp.9044.af4a4ab34c3c",
+    "Vistas/Vista Practicante.md.tmp.9044.06de9823a68e",
+    "Vistas/Consultorios.md",
+    "Vistas/Consultorios.md.tmp.9044.6c9e306a52eb",
+    "Vistas/Historial.md",
+    "Vistas/Historial.md.tmp.9044.8705f44850c0",
+    "Vistas/Estadísticas de la Práctica.md",
+    "Vistas/Estadísticas de la Práctica.md.tmp.9044.b59fce1dbdf8",
+    "Vistas/Prácticas Activas.md",
+    "Vistas/Prácticas Activas.md.tmp.9044.9288b0b496ed",
+    "Vistas/Postulaciones.md.tmp.9044.ef96a6ead238",
+    "Vistas/Panel General.md",
+    "Vistas/Panel General.md.tmp.9044.0ccaaf3b9d72",
+    "Vistas/Formulario de Postulación.md",
+    "Entidades/Certificado de Práctica.md",
+    "Entidades/Calificaciones.md",
+    "Entidades/Abogado Tutor.md",
+    "Entidades/Practicante.md",
+    "Entidades/Práctica.md",
+    "Entidades/Consultorio.md",
+    "Entidades/Postulante.md",
+    "Flujo del proceso.md",
+    "Panel General.md",
+    "Bienvenido.md"
+  ]
+}

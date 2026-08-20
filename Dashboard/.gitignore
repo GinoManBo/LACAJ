@@ -1,0 +1,8 @@
+# Claves de API — nunca deben llegar al repositorio
+.env
+.env.local
+.env.*.local
+
+# Dependencias y artefactos de build
+node_modules/
+dist/

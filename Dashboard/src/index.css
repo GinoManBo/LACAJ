@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --navy: #1a2744;
+  --navy-light: #1e3056;
+  --navy-mid: #243060;
+  --red: #c0392b;
+  --red-light: #e74c3c;
+  --white: #ffffff;
+  --gray-50: #f8f9fa;
+  --gray-100: #f1f3f5;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-400: #ced4da;
+  --gray-500: #adb5bd;
+  --gray-600: #6c757d;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --green: #27ae60;
+  --orange: #e67e22;
+  --blue: #2980b9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: var(--gray-100);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+@keyframes validacionProgreso {
+  0%   { margin-left: 0%;   width: 25%; }
+  50%  { margin-left: 45%;  width: 40%; }
+  100% { margin-left: 100%; width: 25%; }
+}
