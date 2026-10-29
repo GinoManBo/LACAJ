@@ -1,0 +1,27 @@
+Domicilio en incripción cambiar de ñuble a aisen creo.
+
+Nos van hacer llegar el listado de la mencion o especialidad en derecho.
+
+Avisarle al usuario que campo le falta por rellenar, scroll vertical al campo faltante y destacarlo con rojo el contorno.
+
+Juridica asigna manualmente a los postulantes a un consultorio.
+
+Nota: 2 secretarias para el BioBio en este caso, después no se sabe.
+
+Nota: La plataforma es regional, significa que una persona gestiona solo lo de su region, mas individual. Una encuesta como la de mantis cmr.
+
+Generar perfil de Administrador, separado de las Asistentes, a veces se equivocan las secretarias, de modo que puedan realizar modificaciones.
+
+En practicas activas, agregar un link para como toda la estadistica de la practica, agregar exportar excel.
+[Preguntar que estadisticas necesitan]
+
+En el historial, agregar lo mismo el link del desarrollo, como las partidas de stratus. por region correspondiente.
+
+El SAJ mantiene la vista de practicante, si que no se utilizará.
+
+La calificación es única, no mensual.
+
++ Informe de practica.  --> Desbloquea la calificación al abogado tutor.
+
+Faltó:
+Generar Documento por la cancelación.

@@ -1,0 +1,36 @@
+<?php
+
+use App\Http\Controllers\Admin\CapacidadController;
+use App\Http\Controllers\Admin\InicioController;
+use App\Http\Controllers\Admin\PracticantesController;
+use App\Http\Controllers\Admin\UsuariosController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('admin')->name('admin.')->middleware('rol:administrador')->group(function () {
+    Route::get('/', InicioController::class)->name('inicio');
+
+    Route::prefix('practicantes')->name('practicantes.')->group(function () {
+        Route::get('/', [PracticantesController::class, 'index'])->name('index');
+        Route::get('/{practica}', [PracticantesController::class, 'ver'])->whereNumber('practica')->name('ver');
+        Route::put('/{practica}', [PracticantesController::class, 'actualizar'])->whereNumber('practica')->name('actualizar');
+        Route::post('/{practica}/trasladar', [PracticantesController::class, 'trasladar'])->whereNumber('practica')->name('trasladar');
+        Route::post('/{practica}/cancelar', [PracticantesController::class, 'cancelar'])->whereNumber('practica')->name('cancelar');
+    });
+
+    Route::prefix('capacidad')->name('capacidad.')->group(function () {
+        Route::get('/', [CapacidadController::class, 'index'])->name('index');
+        Route::get('/{consultorio}', [CapacidadController::class, 'ver'])->whereNumber('consultorio')->name('ver');
+        Route::post('/{consultorio}', [CapacidadController::class, 'ajustar'])->whereNumber('consultorio')->name('ajustar');
+    });
+
+    Route::prefix('usuarios')->name('usuarios.')->group(function () {
+        Route::get('/', [UsuariosController::class, 'index'])->name('index');
+        Route::get('/nuevo', [UsuariosController::class, 'crear'])->name('crear');
+        Route::post('/', [UsuariosController::class, 'guardar'])->name('guardar');
+        Route::get('/{usuario}/editar', [UsuariosController::class, 'editar'])->whereNumber('usuario')->name('editar');
+        Route::put('/{usuario}', [UsuariosController::class, 'actualizar'])->whereNumber('usuario')->name('actualizar');
+        Route::post('/{usuario}/activar', [UsuariosController::class, 'activar'])->whereNumber('usuario')->name('activar');
+        Route::post('/{usuario}/desactivar', [UsuariosController::class, 'desactivar'])->whereNumber('usuario')->name('desactivar');
+        Route::post('/{usuario}/resetear-password', [UsuariosController::class, 'resetearPassword'])->whereNumber('usuario')->name('resetear');
+    });
+});
