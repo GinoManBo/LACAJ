@@ -23,7 +23,7 @@
 @if ($practicas->isEmpty())
     <x-estado-vacio titulo="No hay prácticas cerradas" :texto="($q !== '' || $anio) ? 'Ninguna coincide con los filtros.' : 'Las prácticas finalizadas o canceladas quedarán registradas aquí.'" />
 @else
-    <x-tabla :columnas="['Practicante', 'Consultorio', 'Abogado tutor', 'Periodo', 'Nota', 'Resultado']" descripcion="Prácticas finalizadas y canceladas">
+    <x-tabla :columnas="['Postulante', 'Consultorio', 'Abogado tutor', 'Periodo', 'Nota', 'Resultado']" descripcion="Prácticas finalizadas y canceladas">
         @foreach ($practicas as $p)
             @php $po = $p->practicante->postulante; $a = $p->abogado?->usuario; $noInicio = $p->estado === 'cancelada' && $p->cancelacion_antes_de_iniciar; @endphp
             <tr data-href="{{ route('secretaria.historial.ver', $p->id) }}">

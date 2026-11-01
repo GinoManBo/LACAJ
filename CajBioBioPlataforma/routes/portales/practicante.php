@@ -10,3 +10,12 @@ Route::prefix('practicante')->name('practicante.')->middleware('rol:practicante'
     Route::get('/documentos/certificado', [PracticanteController::class, 'certificado'])->name('certificado');
     Route::get('/documentos/resolucion', [PracticanteController::class, 'resolucion'])->name('resolucion');
 });
+
+// Alias de ruta accesible como /postulante
+Route::prefix('postulante')->middleware('rol:practicante')->group(function () {
+    Route::get('/', [PracticanteController::class, 'inicio']);
+    Route::post('/informe', [PracticanteController::class, 'subirInforme']);
+    Route::get('/informe', [PracticanteController::class, 'descargarInforme']);
+    Route::get('/documentos/certificado', [PracticanteController::class, 'certificado']);
+    Route::get('/documentos/resolucion', [PracticanteController::class, 'resolucion']);
+});

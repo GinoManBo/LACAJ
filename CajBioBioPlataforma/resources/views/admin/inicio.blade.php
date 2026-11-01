@@ -12,7 +12,7 @@
     <x-indicador :valor="$indicadores['postulaciones_pendientes']" etiqueta="Postulaciones pendientes" detalle="Esperan respuesta de una secretaría" :critico="$indicadores['postulaciones_pendientes'] > 0" />
     <x-indicador :valor="$indicadores['ocupacion_pct'].'%'" etiqueta="Ocupación de cupos" href="{{ route('admin.capacidad.index') }}">
     </x-indicador>
-    <x-indicador :valor="$indicadores['practicantes_registrados']" etiqueta="Practicantes registrados" />
+    <x-indicador :valor="$indicadores['practicantes_registrados']" etiqueta="Postulantes registrados" />
 </div>
 
 <div class="rejilla-dos">
@@ -27,7 +27,7 @@
 
     <x-tarjeta titulo="Ir a">
         <div class="accesos">
-            <a href="{{ route('admin.practicantes.index') }}" class="acceso"><strong>Gestión de practicantes</strong><span>Editar fichas, trasladar de sede o cancelar una práctica.</span></a>
+            <a href="{{ route('admin.practicantes.index') }}" class="acceso"><strong>Gestión de postulantes</strong><span>Editar fichas, trasladar de sede o cancelar una práctica.</span></a>
             <a href="{{ route('admin.capacidad.index') }}" class="acceso"><strong>Capacidad de consultorios</strong><span>Agregar o retirar cupos por sede.</span></a>
             <a href="{{ route('admin.usuarios.index') }}" class="acceso"><strong>Usuarios</strong><span>Crear cuentas, cambiar roles y desactivar accesos.</span></a>
         </div>

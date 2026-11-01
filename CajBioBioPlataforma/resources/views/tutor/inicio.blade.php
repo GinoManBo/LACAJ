@@ -1,5 +1,5 @@
-@extends('layouts.portal', ['migas' => [['Mis practicantes']]])
-@section('titulo', 'Mis practicantes')
+@extends('layouts.portal', ['migas' => [['Mis postulantes']]])
+@section('titulo', 'Mis postulantes')
 
 @section('contenido')
 @php
@@ -18,12 +18,12 @@
 </header>
 
 <div class="rejilla-indicadores tp-entra" style="--i:1">
-    <x-indicador :valor="$activos" etiqueta="Practicantes en curso" :detalle="$practicas->count().' '.($practicas->count() === 1 ? 'práctica en la lista' : 'prácticas en la lista')" />
+    <x-indicador :valor="$activos" etiqueta="Postulantes en curso" :detalle="$practicas->count().' '.($practicas->count() === 1 ? 'práctica en la lista' : 'prácticas en la lista')" />
     <x-indicador :valor="$noLeidas" etiqueta="Notificaciones sin leer" :critico="$noLeidas > 0" :href="route('notificaciones.index')" detalle="Ver notificaciones" />
     <x-indicador :valor="$consultorios->count()" etiqueta="{{ $consultorios->count() === 1 ? 'Consultorio asignado' : 'Consultorios asignados' }}" :detalle="$consultorios->pluck('nombre')->take(2)->join(', ')" />
 </div>
 
-<x-tarjeta titulo="Mis practicantes" class="tp-entra" style="--i:2">
+<x-tarjeta titulo="Mis postulantes" class="tp-entra" style="--i:2">
     <form method="GET" action="{{ route('tutor.inicio') }}" class="tp-filtros" role="search" data-sin-validar>
         <x-campo name="q" label="Buscar" :value="$filtros['q']" placeholder="Nombre o universidad" maxlength="100" type="search" />
         <x-campo name="estado" label="Estado" :opciones="$opcionesEstado" :value="$filtros['estado']" placeholder="Todos" />
@@ -35,12 +35,12 @@
 
     <div style="margin-top:1.25rem">
         @if ($practicas->isEmpty())
-            <x-estado-vacio :titulo="$conFiltros ? 'Sin resultados para su búsqueda' : 'Aún no tiene practicantes asignados'"
-                :texto="$conFiltros ? 'Pruebe con otro nombre, universidad o estado.' : 'Cuando la secretaría asigne un practicante a su cargo, aparecerá aquí.'">
+            <x-estado-vacio :titulo="$conFiltros ? 'Sin resultados para su búsqueda' : 'Aún no tiene postulantes asignados'"
+                :texto="$conFiltros ? 'Pruebe con otro nombre, universidad o estado.' : 'Cuando la secretaría asigne un postulante a su cargo, aparecerá aquí.'">
                 @if ($conFiltros)<x-boton tipo="secundario" :href="route('tutor.inicio')">Quitar filtros</x-boton>@endif
             </x-estado-vacio>
         @else
-            <x-tabla :columnas="['Practicante', 'Universidad', 'Consultorio', 'Período', 'Estado', 'Evaluación']" descripcion="Prácticas asignadas a usted">
+            <x-tabla :columnas="['Postulante', 'Universidad', 'Consultorio', 'Período', 'Estado', 'Evaluación']" descripcion="Prácticas asignadas a usted">
                 @foreach ($practicas as $p)
                     @php
                         $pos = $p->practicante->postulante;

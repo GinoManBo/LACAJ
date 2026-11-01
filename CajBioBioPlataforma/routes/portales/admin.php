@@ -17,6 +17,15 @@ Route::prefix('admin')->name('admin.')->middleware('rol:administrador')->group(f
         Route::post('/{practica}/cancelar', [PracticantesController::class, 'cancelar'])->whereNumber('practica')->name('cancelar');
     });
 
+    // Alias /admin/postulantes
+    Route::prefix('postulantes')->group(function () {
+        Route::get('/', [PracticantesController::class, 'index']);
+        Route::get('/{practica}', [PracticantesController::class, 'ver'])->whereNumber('practica');
+        Route::put('/{practica}', [PracticantesController::class, 'actualizar'])->whereNumber('practica');
+        Route::post('/{practica}/trasladar', [PracticantesController::class, 'trasladar'])->whereNumber('practica');
+        Route::post('/{practica}/cancelar', [PracticantesController::class, 'cancelar'])->whereNumber('practica');
+    });
+
     Route::prefix('capacidad')->name('capacidad.')->group(function () {
         Route::get('/', [CapacidadController::class, 'index'])->name('index');
         Route::get('/{consultorio}', [CapacidadController::class, 'ver'])->whereNumber('consultorio')->name('ver');

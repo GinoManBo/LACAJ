@@ -25,7 +25,7 @@
 
 <form method="GET" action="{{ route('secretaria.practicas') }}" class="sec-busqueda" role="search">
     <div class="campo"><label for="q" class="sr-only">Buscar práctica</label>
-        <input id="q" name="q" type="search" value="{{ $q }}" class="campo-control" placeholder="Nombre o apellido del practicante"></div>
+        <input id="q" name="q" type="search" value="{{ $q }}" class="campo-control" placeholder="Nombre o apellido del postulante"></div>
     <x-boton type="submit">@include('secretaria._icono', ['n' => 'buscar']) Buscar</x-boton>
     @if ($q !== '')<x-boton tipo="fantasma" :href="route('secretaria.practicas')">Limpiar</x-boton>@endif
 </form>
@@ -33,7 +33,7 @@
 @if ($practicas->isEmpty())
     <x-estado-vacio titulo="No hay prácticas activas" :texto="$q !== '' ? 'Ninguna coincide con su búsqueda.' : 'Cuando acepte una postulación, la práctica aparecerá aquí.'" />
 @else
-    <x-tabla :columnas="['Practicante', 'Consultorio', 'Abogado tutor', 'Periodo', 'Avance', 'Estado', 'Acciones']" descripcion="Prácticas por iniciar y en curso">
+    <x-tabla :columnas="['Postulante', 'Consultorio', 'Abogado tutor', 'Periodo', 'Avance', 'Estado', 'Acciones']" descripcion="Prácticas por iniciar y en curso">
         @foreach ($practicas as $p)
             @php $po = $p->practicante->postulante; $nom = $po->nombre.' '.$po->apellido; $est = $p->estado_visible; @endphp
             <tr data-href="{{ route('secretaria.practicas.ver', $p->id) }}">

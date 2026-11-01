@@ -50,7 +50,7 @@ class CapacidadController extends Controller
         $ocupados = $consultorio->ocupados();
         if ($nueva < $ocupados) {
             throw ValidationException::withMessages([
-                'capacidad' => "La capacidad no puede ser menor que los practicantes asignados ({$ocupados}). Traslade primero a los practicantes.",
+                'capacidad' => "La capacidad no puede ser menor que los postulantes asignados ({$ocupados}). Traslade primero a los postulantes.",
             ]);
         }
         if ($nueva < 0 || $nueva > 500) {

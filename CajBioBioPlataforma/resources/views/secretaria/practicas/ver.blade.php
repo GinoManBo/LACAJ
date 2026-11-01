@@ -18,7 +18,7 @@
 </div>
 
 <div class="sec-dos">
-    <x-tarjeta titulo="Practicante">
+    <x-tarjeta titulo="Postulante">
         <dl class="datos">
             <div><dt>RUT</dt><dd>{{ $postulante->rut }}</dd></div>
             <div><dt>Año de carrera</dt><dd>{{ $anio }}</dd></div>

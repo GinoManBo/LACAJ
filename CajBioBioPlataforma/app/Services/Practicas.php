@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 class Practicas
 {
-    public const MOTIVOS_CANCELACION = ['conducta' => 'Conducta del practicante', 'decision' => 'Decisión del practicante', 'otro' => 'Otro motivo'];
+    public const MOTIVOS_CANCELACION = ['conducta' => 'Conducta del postulante', 'decision' => 'Decisión del postulante', 'otro' => 'Otro motivo'];
     public const DIAS_POR_TERMINAR = 30;
 
     /** @return array{total:int, transcurridos:int, restantes:int, porcentaje:int} */

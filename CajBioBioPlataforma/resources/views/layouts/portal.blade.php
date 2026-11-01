@@ -1,7 +1,7 @@
 @php
     $u = Auth::user();
     $noLeidas = \App\Models\Notificacion::where('usuario_destino_id', $u->id)->whereNull('leida_at')->count();
-    $etiquetasRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'abogado' => 'Abogado tutor', 'practicante' => 'Practicante', 'gobernador' => 'Gobernador regional'];
+    $etiquetasRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'abogado' => 'Abogado tutor', 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
     $iconos = [
         'inicio' => 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
         'lista' => 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
@@ -18,7 +18,7 @@
             ['secretaria.historial', 'Historial', 'reloj'],
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
         ],
-        'abogado' => [['tutor.inicio', 'Mis practicantes', 'inicio']],
+        'abogado' => [['tutor.inicio', 'Mis postulantes', 'inicio']],
         'practicante' => [['practicante.inicio', 'Mi práctica', 'inicio']],
         'gobernador' => [['gobernador.inicio', 'Resumen regional', 'inicio']],
         default => [],
@@ -49,7 +49,7 @@
         <div class="sidebar-marca">
             <a href="{{ $inicioUrl }}" class="marca">
                 <img src="{{ asset('img/logo-caj.png') }}" alt="Corporación de Asistencia Judicial del Biobío" width="48" height="44" class="marca-logo marca-logo-portal">
-                <span class="marca-texto" aria-hidden="true"><strong>CAJ Biobío</strong><span>Gestión de practicantes</span></span>
+                <span class="marca-texto" aria-hidden="true"><strong>CAJ Biobío</strong><span>Gestión de postulantes</span></span>
             </a>
         </div>
         <nav class="nav">

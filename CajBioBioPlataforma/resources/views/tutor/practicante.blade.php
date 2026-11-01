@@ -1,4 +1,4 @@
-@extends('layouts.portal', ['migas' => [['Mis practicantes', route('tutor.inicio')], [$postulante->nombre_completo]]])
+@extends('layouts.portal', ['migas' => [['Mis postulantes', route('tutor.inicio')], [$postulante->nombre_completo]]])
 @section('titulo', $postulante->nombre_completo)
 
 @section('contenido')
@@ -36,7 +36,7 @@
 
 <div class="tp-dos">
     <div class="tp-pila">
-        <x-tarjeta titulo="Ficha del practicante" class="tp-entra" style="--i:2">
+        <x-tarjeta titulo="Ficha del postulante" class="tp-entra" style="--i:2">
             <dl class="tp-ficha">
                 <div><dt>RUT</dt><dd>{{ $postulante->rut }}</dd></div>
                 <div><dt>Teléfono</dt><dd>{{ $postulante->telefono ?: '—' }}</dd></div>
@@ -64,7 +64,7 @@
             @else
                 <div class="tp-bloqueo">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/></svg>
-                    <div><strong>Informe pendiente</strong>El practicante todavía no sube su informe de práctica. Le avisaremos cuando llegue.</div>
+                    <div><strong>Informe pendiente</strong>El postulante todavía no sube su informe de práctica. Le avisaremos cuando llegue.</div>
                 </div>
             @endif
         </x-tarjeta>

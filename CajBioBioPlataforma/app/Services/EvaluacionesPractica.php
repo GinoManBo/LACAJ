@@ -21,7 +21,7 @@ class EvaluacionesPractica
             return 'Solo se evalúan prácticas en curso.';
         }
         if (! InformesPractica::vigente($p)) {
-            return 'El practicante aún no sube su informe de práctica; la encuesta se habilita al recibirlo.';
+            return 'El postulante aún no sube su informe de práctica; la encuesta se habilita al recibirlo.';
         }
 
         return null;

@@ -91,7 +91,7 @@ class Postulaciones
             Auditoria::registrar('postulacion.aceptar', 'postulacion', $p->id, ['consultorio_id' => $consultorio->id, 'practica_id' => $practica->id], $actor->id);
 
             if ($abogado) {
-                Notificaciones::crear($abogado->usuario_id, 'informativo', 'Nuevo practicante asignado',
+                Notificaciones::crear($abogado->usuario_id, 'informativo', 'Nuevo postulante asignado',
                     "{$postulante->nombre} {$postulante->apellido} fue asignado/a a {$consultorio->nombre}.", 'practica', $practica->id);
             }
             if ($practicante->usuario_id) {

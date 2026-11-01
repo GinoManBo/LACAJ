@@ -4,8 +4,8 @@
 @if (session('credenciales'))
     @php $cred = session('credenciales'); @endphp
     <section class="sec-credenciales" role="alert" aria-labelledby="cred-titulo">
-        <h2 id="cred-titulo">Cuenta del practicante creada</h2>
-        <p>Entregue estos datos al practicante. La contraseña temporal se muestra solo esta vez y se le pedirá cambiarla al ingresar.</p>
+        <h2 id="cred-titulo">Cuenta del postulante creada</h2>
+        <p>Entregue estos datos al postulante. La contraseña temporal se muestra solo esta vez y se le pedirá cambiarla al ingresar.</p>
         <div class="sec-cred-fila"><span class="sec-cred-correo">{{ $cred['email'] }}</span></div>
         <div class="sec-cred-fila">
             <code class="sec-cred-valor" id="cred-pass">{{ $cred['password'] }}</code>

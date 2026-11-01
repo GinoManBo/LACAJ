@@ -105,11 +105,11 @@
             <dl class="contacto-datos">
                 <div><dt>Dirección</dt><dd>Freire N° 1220, Concepción</dd></div>
                 <div><dt>Teléfonos</dt><dd><a href="tel:+56412735950">(41) 273 5950</a> / <a href="tel:+56412735951">(41) 273 5951</a></dd></div>
-                <div><dt>Correo</dt><dd><a href="mailto:postulantes@cajbiobio.cl">postulantes@cajbiobio.cl</a></dd></div>
+                <div><dt>Correo</dt><dd><a href="mailto:{{ config('caj.correo_contacto', 'postulantes@cajbiobio.cl') }}">{{ config('caj.correo_contacto', 'postulantes@cajbiobio.cl') }}</a></dd></div>
             </dl>
         </div>
         <div class="contacto-ingreso">
-            <h3>¿Ya postulaste o eres practicante?</h3>
+            <h3>¿Ya postulaste o estás realizando tu práctica?</h3>
             <p>Ingresa para revisar el estado de tu postulación, tu práctica y tus documentos.</p>
             <x-boton tipo="secundario" :href="route('login')" class="btn-sobre-azul">Ingresar al sistema</x-boton>
         </div>

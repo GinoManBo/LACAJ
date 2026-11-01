@@ -1,7 +1,7 @@
 @php
     $items = [
         ['admin.inicio', 'Resumen', 'admin.inicio'],
-        ['admin.practicantes.index', 'Practicantes', 'admin.practicantes.*'],
+        ['admin.practicantes.index', 'Postulantes', 'admin.practicantes.*'],
         ['admin.capacidad.index', 'Capacidad', 'admin.capacidad.*'],
         ['admin.usuarios.index', 'Usuarios', 'admin.usuarios.*'],
     ];
