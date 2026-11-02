@@ -23,6 +23,18 @@
     </script>
 @endif
 
+@if (session('practica_creada_id'))
+    <div class="alerta alerta-info" role="status" style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div>
+            <strong>Siguiente paso administrativo:</strong>
+            Descargue la Carta de Presentación tipo, recabe la firma autorizada institucional y cárguela firmada en la ficha de la práctica para oficializar el inicio y notificar al Abogado Jefe.
+        </div>
+        <x-boton tipo="primario" tam="sm" :href="route('secretaria.practicas.ver', session('practica_creada_id'))">
+            Tramitar Carta de Presentación
+        </x-boton>
+    </div>
+@endif
+
 <div class="sec-cabecera">
     <div>
         <h1 class="titulo-pagina">Postulaciones pendientes</h1>

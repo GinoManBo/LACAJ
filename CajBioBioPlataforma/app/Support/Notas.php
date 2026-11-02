@@ -85,6 +85,41 @@ final class Notas
     }
 
     /**
+     * Retorna la clave de OPCIONES correspondiente a la nota.
+     */
+    public static function claveConcepto(float|int|string|null $nota): string
+    {
+        if ($nota === null) {
+            return '';
+        }
+        $val = (float) $nota;
+
+        return match (true) {
+            $val >= 6.5 => 'SOBRESALIENTE',
+            $val >= 5.5 => 'MUY_BUENA',
+            $val >= 4.5 => 'BUENA',
+            $val >= 4.0 => 'REGULAR',
+            default => 'DEFICIENTE',
+        };
+    }
+
+    /**
+     * Obtiene el valor decimal base a partir de un concepto en palabras o clave.
+     */
+    public static function valorDesdeConcepto(string|float|int|null $concepto): float
+    {
+        if (is_numeric($concepto)) {
+            return (float) $concepto;
+        }
+        $c = strtoupper(str_replace(' ', '_', trim((string) $concepto)));
+        if (isset(self::OPCIONES[$c])) {
+            return (float) self::OPCIONES[$c]['valor'];
+        }
+
+        return 5.0;
+    }
+
+    /**
      * Determina si la calificación califica para la regla de nivelación de oficio (concepto Regular).
      */
     public static function esNivelable(float|int|string|null $nota): bool

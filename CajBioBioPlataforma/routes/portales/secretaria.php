@@ -27,6 +27,10 @@ Route::middleware('rol:secretaria,juridica_central')->prefix('secretaria')->grou
     Route::get('/practicas/exportar', [PracticasController::class, 'exportar'])->name('secretaria.practicas.exportar');
     Route::get('/practicas/{id}', [PracticasController::class, 'ver'])->whereNumber('id')->name('secretaria.practicas.ver');
     Route::get('/practicas/{id}/estadistica', [PracticasController::class, 'estadistica'])->whereNumber('id')->name('secretaria.practicas.estadistica');
+    Route::get('/practicas/{id}/carta-presentacion.pdf', [PracticasController::class, 'descargarCartaPresentacion'])->whereNumber('id')->name('secretaria.practicas.carta_presentacion');
+    Route::post('/practicas/{id}/carta-presentacion', [PracticasController::class, 'subirCartaPresentacion'])->whereNumber('id')->name('secretaria.practicas.subir_carta_firmada');
+    Route::get('/practicas/{id}/carta-firmada.pdf', [PracticasController::class, 'verCartaPresentacionFirmada'])->whereNumber('id')->name('secretaria.practicas.ver_carta_firmada');
+    Route::post('/practicas/{id}/segunda-instancia', [PracticasController::class, 'calificarSegundaInstancia'])->whereNumber('id')->name('secretaria.practicas.segunda_instancia');
     Route::post('/practicas/{id}/cancelar', [PracticasController::class, 'cancelar'])->whereNumber('id')->name('secretaria.practicas.cancelar');
     Route::get('/practicas/{id}/cancelacion.pdf', [PracticasController::class, 'documentoCancelacion'])->whereNumber('id')->name('secretaria.cancelacion.documento');
 
@@ -49,6 +53,7 @@ Route::middleware('rol:secretaria,juridica_central')->prefix('secretaria')->grou
         Route::get('/', [JuridicaBiobioController::class, 'index'])->name('index');
         Route::get('/{id}', [JuridicaBiobioController::class, 'ver'])->whereNumber('id')->name('ver');
         Route::post('/{id}/nivelar', [JuridicaBiobioController::class, 'nivelar'])->whereNumber('id')->name('nivelar');
+        Route::post('/{id}/segunda-instancia', [JuridicaBiobioController::class, 'calificarSegundaInstancia'])->whereNumber('id')->name('segunda_instancia');
         Route::post('/{id}/rechazar-sancion', [JuridicaBiobioController::class, 'rechazarSancion'])->whereNumber('id')->name('rechazar_sancion');
         Route::post('/{id}/despachar', [JuridicaBiobioController::class, 'despachar'])->whereNumber('id')->name('despachar');
     });

@@ -151,6 +151,97 @@ Se documentó explícitamente en `CajBioBioPlataforma/database/seeders/UsuariosD
 
 ---
 
-## 3. Próximas Refactorizaciones (Pendientes)
+## 3. Arquitectura de Abogados: Consolidación bajo el perfil de «Abogado Jefe», Instancias Judiciales (1ª y 2ª Instancia), Carta de Presentación Oficial y Liberación de Cupos
+
+### 3.1 Contexto y Motivación
+La gestión judicial en los consultorios y tribunales de la jurisdicción requería formalizar la figura del **Abogado Jefe**, descartando la nomenclatura de «Abogado Tutor» en los portales principales debido a la alta rotación y la estructura orgánica real de la institución:
+1. **Diferenciación de Instancias Evaluadoras:**
+   * **Abogado Jefe de 1ª Instancia (Consultorio Jurídico):** Asociado a una unidad operativa local (ej. Consultorio San Pedro, Coronel). Supervisa y evalúa los 6 meses continuos de práctica sobre los 7 factores reglamentarios. Su visibilidad está limitada exclusivamente a los postulantes de su unidad.
+   * **Abogado Jefe de 2ª Instancia (Corte de Apelaciones):** Asociado a la Oficina de Segunda Instancia Regional. Cuenta con visibilidad transversal para toda su región (`region_id`), accediendo a los postulantes de cualquier consultorio que deban rendir o hayan rendido alegatos ante el Tribunal de Alzada.
+   * **Cruces de permisos estrictos:** El Abogado Jefe de consultorio no puede calificar ni modificar la 2ª instancia. El Abogado Jefe de Corte de Apelaciones ve la 1ª instancia como sólo lectura y no puede alterar las notas del consultorio.
+2. **Carta de Presentación Oficial y Flujo Manual de Firma:**
+   * La plataforma genera en PDF la Carta de Presentación oficial a nombre de la Dirección de Acceso a la Justicia, dirigida al Abogado Jefe del Consultorio y con la advertencia reglamentaria sobre la comparecencia obligatoria ante la Corte de Apelaciones.
+   * La Secretaría Regional descarga el documento oficial tipo, tramita su firma manual o electrónica autorizada institucional, y carga el PDF escaneado/firmado en el sistema.
+   * Al cargar la carta firmada, la práctica adquiere el estado `activa` («Inicio Manual Oficial»), se notifica automáticamente al Abogado Jefe del consultorio y se instruye el despacho formal del documento.
+3. **Carga Asistida de Segunda Instancia:**
+   * Si el Abogado Jefe de 2ª Instancia remite la calificación de los alegatos mediante oficio o correo electrónico a la Secretaría, tanto la Secretaría Regional como la Secretaría Jurídica Central disponen de un módulo de carga asistida para transcribir el concepto cualitativo y las observaciones reglamentarias.
+4. **Ponderación Asimétrica de Instancias:**
+   * La 1ª instancia es el elemento determinante principal del desempeño (evaluación integral de 6 meses).
+   * La 2ª instancia es complementaria y condicional a los alegatos ante la Corte.
+   * Ambas calificaciones se consolidan como propuesta cualitativa que es visada por el Director Regional antes de la remisión a Jurídica Central Biobío.
+5. **Término Provisional y Liberación Automática de Vacantes (180 Días):**
+   * Al cumplirse los 6 meses reglamentarios (`fecha_termino <= today()`), el cupo del consultorio se libera automáticamente en el cálculo de vacantes de la institución (`Consultorio::ocupados()`), permitiendo recibir nuevos postulantes sin depender del cierre administrativo o burocrático de la evaluación.
+   * **Alerta de término (Día 166 / 5,5 meses):** A dos semanas del término legal, el sistema activa alertas visuales para solicitar el informe final y prevenir retrasos.
+   * **Subsanación de Informes:** El Abogado Jefe puede formular observaciones formales al informe final cargado por el postulante antes de emitir la calificación, enviando una notificación urgente para su corrección.
+6. **Sistema de Calificación Exclusivamente en Palabras:**
+   * Toda la captura y visualización de notas en la plataforma (tanto para 1ª como para 2ª instancia) se efectúa en conceptos reglamentarios en palabras: `Sobresaliente`, `Muy Buena`, `Buena`, `Regular` y `Deficiente`, suprimiendo la exposición de números decimales a los usuarios.
+
+---
+
+### 3.2 Componentes Afectados y Cambios Realizados
+
+| Archivo | Comportamiento Anterior | Estado Actual |
+| :--- | :--- | :--- |
+| `CajBioBioPlataforma/database/migrations/2026_11_02_000001_agrega_segunda_instancia_a_abogados.php` | No existía. | Añade `es_segunda_instancia` y `region_id` en tabla `abogados`; `carta_presentacion_firmada`, `carta_presentacion_subida_at` y `abogado_segunda_instancia_id` en `practicas`. |
+| `CajBioBioPlataforma/app/Models/Abogado.php` | Atributos estándar de abogado tutor sin distinción de instancia ni región. | Incorpora `es_segunda_instancia` a casts, relación `region()`, relación `practicasSegundaInstancia()` y método `esSegundaInstancia()`. |
+| `CajBioBioPlataforma/app/Models/Practica.php` | Sin relaciones directas a calificaciones por instancia ni carta firmada. | Añade cast `carta_presentacion_subida_at`, relación `abogadoSegundaInstancia()`, y métodos auxiliares `calificacionPrimeraInstancia()` y `calificacionSegundaInstancia()`. |
+| `CajBioBioPlataforma/app/Models/Consultorio.php` | `ocupados()` contaba todas las prácticas activas sin considerar el vencimiento de los 6 meses. | Filtra únicamente las prácticas cuya `fecha_termino > today()`, liberando la vacante inmediatamente al cumplirse los 180 días. |
+| `CajBioBioPlataforma/app/Support/Notas.php` | Métodos numéricos estándar. | Añade `claveConcepto()`, `valorDesdeConcepto()` y constante estructurada `OPCIONES` para operar con calificaciones en palabras. |
+| `CajBioBioPlataforma/app/Services/CartaPresentacionService.php` | No existía. | Servicio que genera el PDF formal con membrete institucional, datos del postulante, registro de práctica y advertencia de alegatos en Corte. |
+| `CajBioBioPlataforma/resources/views/pdf/carta_presentacion.blade.php` | No existía. | Plantilla oficial de Carta de Presentación idéntica al formato institucional de la Corporación. |
+| `CajBioBioPlataforma/app/Services/InformesPractica.php` | Solo permitía subida y consulta de informes. | Incorpora `observar()` para permitir al Abogado Jefe registrar observaciones de subsanación y emitir notificaciones urgentes. |
+| `CajBioBioPlataforma/app/Http/Controllers/Tutor/TutorController.php` | Diseñado para tutor único de consultorio, con notas numéricas del 1 al 7. | Discrimina entre 1ª y 2ª instancia según `es_segunda_instancia`, implementa `evaluarSegundaInstancia()`, `observarInforme()`, visibilidad transversal regional y evaluación en palabras. |
+| `CajBioBioPlataforma/app/Http/Controllers/Secretaria/PracticasController.php` | Sin gestión de carta de presentación ni carga asistida de 2ª instancia. | Métodos `descargarCartaPresentacion()`, `subirCartaPresentacion()`, `verCartaPresentacionFirmada()` y `calificarSegundaInstancia()`. |
+| `CajBioBioPlataforma/routes/portales/tutor.php` | Rutas básicas de tutor. | Agrega rutas para `evaluacion.segunda_instancia` y `informe.observar`. |
+| `CajBioBioPlataforma/routes/portales/secretaria.php` | Rutas estándar. | Agrega rutas de descarga, subida y visualización de Carta de Presentación, y carga asistida de 2ª instancia. |
+| `CajBioBioPlataforma/resources/views/tutor/inicio.blade.php` | Vista rígida de «Mis postulantes». | Soporta doble vista: bandeja de consultorio para 1ª instancia o bandeja de Corte de Apelaciones con métricas regionales para 2ª instancia. |
+| `CajBioBioPlataforma/resources/views/tutor/practicante.blade.php` | Formulario numérico con promedio decimal. | Rediseño integral: muestra calificaciones sólo en palabras, formularios independientes según instancia, cruce de permisos en solo lectura y subsanación de informe. |
+| `CajBioBioPlataforma/resources/views/secretaria/practicas/ver.blade.php` | Ficha básica de práctica activa. | Tarjetas para descarga y subida de Carta de Presentación firmada, e interfaz para carga asistida de calificaciones de 2ª instancia. |
+| `CajBioBioPlataforma/resources/views/layouts/portal.blade.php` | Rol genérico «Abogado tutor». | Badge y menú dinámicos: «Abogado Jefe Consultorio» vs «Abogado Jefe 2ª Instancia» (`Segunda Instancia (Corte)`). |
+| `CajBioBioPlataforma/database/seeders/UsuariosDemoSeeder.php` | Solo abogados de consultorio. | Añade cuenta de demostración para Corte de Apelaciones (`corte_biobio@cajbiobio.cl`) con rol de 2ª instancia regional. |
+
+---
+
+## 4. Catálogo Oficial de Consultorios y Unidades Operativas (192 Sedes), Atributos de Contacto y Módulo de Gestión Administrativa
+
+### 4.1 Contexto y Motivación
+Se incorporó el catálogo oficial completo de las 192 unidades y sedes operativas reales de la Corporación de Asistencia Judicial del Biobío en las 6 regiones de su jurisdicción (Ñuble, Biobío, La Araucanía, Los Ríos, Los Lagos y Aysén), asegurando la preservación íntegra de toda su información institucional y operativa:
+1. **Nuevos Atributos de Información Operativa:**
+   * **Tipo de Unidad (`tipo_unidad`):** Clasificación institucional reglamentaria (`CJ` Consultorio Jurídico tradicional, `OJA` Oficina Jurídico Asistencial, `CAVI` Centro de Atención a Víctimas, `CMED` Centro de Mediación, `PMA` Programa Mi Abogado, `NAD` Niñez y Adolescencia Defendida, `ODL` Oficina de Defensa Laboral, `ODAM` Oficina de Defensa Adulto Mayor, `2DA INSTANCIA` Oficina de Segunda Instancia, `MOVIL` Unidad Móvil y `DG/DR` Dirección Regional/General).
+   * **Teléfonos de contacto (`telefono`):** Registro de líneas fijas, anexos, celulares institucionales y notas de operatividad telefónica.
+   * **Horario de atención al público (`horario_atencion`):** Detalle multilínea de los días y bloques horarios de atención matutina, vespertina y citaciones especiales.
+   * **Correo electrónico institucional (`email`):** Casilla formal de cada unidad para comunicaciones operativas.
+2. **Capacidad de Gestión para Administradores:**
+   * La información de los consultorios no es estática: los administradores de la plataforma cuentan ahora con un módulo integral de administración (`admin.consultorios`) para:
+     - Consultar y filtrar las 192 sedes por nombre, dirección, región, tipo de unidad institucional o estado de activación.
+     - Dar de alta nuevas unidades y sedes operativas.
+     - Modificar y actualizar en cualquier momento los datos de contacto, dirección, teléfonos, horarios de atención, correo electrónico, capacidad de cupos formativos y estados de habilitación.
+     - Ajustar la capacidad máxima de postulantes de manera exacta o mediante controles incrementales rápidos.
+3. **Flexibilización de Unicidad Territorial:**
+   * Se ajustó el índice único de la tabla `consultorios` a `unique(['nombre', 'comuna_id'])`, permitiendo la coexistencia de unidades institucionales homónimas en comunas y regiones distintas (como la «Oficina de Segunda Instancia» presente en Chillán, Concepción, Temuco, Valdivia y Puerto Montt).
+
+---
+
+### 4.2 Componentes Afectados y Cambios Realizados
+
+| Archivo | Comportamiento Anterior | Estado Actual |
+| :--- | :--- | :--- |
+| `CajBioBioPlataforma/database/migrations/2026_11_02_000002_agrega_datos_de_contacto_a_consultorios.php` | No existía. | Incorpora columnas `tipo_unidad`, `telefono`, `horario_atencion`, `email` y flexibiliza el índice único a `nombre + comuna_id`. |
+| `CajBioBioPlataforma/database/seeders/ConsultoriosOficialesSeeder.php` | No existía. | Catálogo institucional con las 192 sedes reales, vinculadas a sus respectivas comunas y regiones. |
+| `CajBioBioPlataforma/database/seeders/ReferenciasSeeder.php` | Solo poblaba 10 consultorios de prueba. | Invoca `ConsultoriosOficialesSeeder` para poblar el 100% de las unidades oficiales. |
+| `CajBioBioPlataforma/app/Models/Consultorio.php` | Sin atributos de contacto ni métodos de tipo de unidad. | Añade casts numéricos, accesor `tipo_unidad_texto` y accesor `nombre_completo` para desambiguación en selectores. |
+| `CajBioBioPlataforma/app/Http/Controllers/Admin/ConsultoriosController.php` | No existía (solo ajuste numérico de capacidad en `CapacidadController`). | Controlador completo para listar, filtrar, crear, ver detalle, editar datos de contacto y ajustar capacidad de sedes. |
+| `CajBioBioPlataforma/routes/portales/admin.php` | Rutas restringidas a `/admin/capacidad`. | Registra grupo `/admin/consultorios` con rutas RESTful completas de administración. |
+| `CajBioBioPlataforma/resources/views/admin/consultorios/index.blade.php` | No existía. | Vista de catálogo con buscador de texto, filtros por región, tipo de unidad y estado, tabla responsiva y métricas. |
+| `CajBioBioPlataforma/resources/views/admin/consultorios/form.blade.php` | No existía. | Formulario para registrar y editar todos los campos de la sede con filtrado dinámico de comunas por región. |
+| `CajBioBioPlataforma/resources/views/admin/consultorios/ver.blade.php` | No existía. | Ficha detallada de sede con datos de contacto, horario, cupos, postulantes asignados y abogados vinculados. |
+| `CajBioBioPlataforma/resources/views/admin/_nav.blade.php` | Pestaña «Capacidad». | Pestaña «Consultorios y Sedes» con enlace directo a la gestión de sedes. |
+| `CajBioBioPlataforma/resources/views/layouts/portal.blade.php` | Menú lateral básico de administrador. | Menú con acceso directo a «Consultorios y Sedes». |
+| `CajBioBioPlataforma/resources/views/secretaria/consultorios/ver.blade.php` | Solo mostraba nombre y dirección. | Tarjeta con tipo de unidad, teléfonos, correo institucional y horario de atención al público. |
+| `CajBioBioPlataforma/resources/views/secretaria/consultorios/index.blade.php` | Tarjetas básicas sin datos de contacto. | Incorpora badge de tipo de unidad y datos de contacto en las tarjetas regionales. |
+
+---
+
+## 5. Próximas Refactorizaciones (Pendientes)
 
 *(Espacio reservado para documentar las siguientes fases de refactorización según se vayan abordando).*

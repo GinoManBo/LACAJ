@@ -40,4 +40,23 @@ class InformesPractica
             return $doc;
         });
     }
+
+    public static function observar(Practica $p, Usuario $por, string $observacion): void
+    {
+        Auditoria::registrar('practica.informe_observado', 'practica', $p->id, [
+            'observacion' => $observacion,
+            'abogado_id' => $por->id,
+        ], $por->id);
+
+        if ($usuario = $p->practicante?->usuario_id) {
+            Notificaciones::crear(
+                $usuario,
+                'urgente',
+                'Observaciones a su informe de práctica',
+                'El Abogado Jefe ha registrado observaciones a su informe final: "'.$observacion.'". Por favor revise y vuelva a cargar el documento subsanado.',
+                'practica',
+                $p->id
+            );
+        }
+    }
 }

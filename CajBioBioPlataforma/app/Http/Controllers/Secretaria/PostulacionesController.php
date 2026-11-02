@@ -112,7 +112,9 @@ class PostulacionesController extends Controller
             return redirect()->route($rutaRedir)->with('ok', 'Postulación derivada a otra región. Quedó a cargo de su secretaría.');
         }
 
-        $redir = redirect()->route($rutaRedir)->with('ok', 'Postulación aceptada: el practicante ingresó al consultorio.');
+        $redir = redirect()->route($rutaRedir)
+            ->with('ok', 'Postulación aceptada. Ingrese a la ficha de la práctica para descargar la Carta de Presentación oficial, tramitar su firma física/electrónica y cargarla firmada para oficializar el inicio y notificar al Abogado Jefe.')
+            ->with('practica_creada_id', $r['practica']->id);
 
         return $r['passwordTemporal']
             ? $redir->with('credenciales', ['email' => $p->postulante->email, 'password' => $r['passwordTemporal']])

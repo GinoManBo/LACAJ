@@ -1,7 +1,10 @@
 @php
     $u = Auth::user();
     $noLeidas = \App\Models\Notificacion::where('usuario_destino_id', $u->id)->whereNull('leida_at')->count();
-    $etiquetasRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'juridica_central' => 'Jurídica Central Biobío', 'abogado' => 'Abogado tutor', 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
+    $etiquetaAbogado = ($u->rol === 'abogado' && $u->abogado?->es_segunda_instancia)
+        ? 'Abogado Jefe 2ª Instancia'
+        : 'Abogado Jefe Consultorio';
+    $etiquetasRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'juridica_central' => 'Jurídica Central Biobío', 'abogado' => $etiquetaAbogado, 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
     $iconos = [
         'inicio' => 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
         'lista' => 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
@@ -10,7 +13,12 @@
         'edificio' => 'M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 10h5a1 1 0 0 1 1 1v10M3 21h18M8 8h2M8 12h2M8 16h2',
     ];
     $menu = match ($u->rol) {
-        'administrador' => [['admin.inicio', 'Administración', 'inicio']],
+        'administrador' => [
+            ['admin.inicio', 'Administración', 'inicio'],
+            ['admin.practicantes.index', 'Postulantes', 'lista'],
+            ['admin.consultorios.index', 'Consultorios y Sedes', 'edificio'],
+            ['admin.usuarios.index', 'Usuarios', 'maletin'],
+        ],
         'secretaria' => array_merge([
             ['secretaria.panel', 'Panel general', 'inicio'],
             ['secretaria.postulaciones', 'Postulaciones', 'lista'],
@@ -24,7 +32,7 @@
             ['secretaria.historial', 'Historial general', 'reloj'],
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
         ],
-        'abogado' => [['tutor.inicio', 'Mis postulantes', 'inicio']],
+        'abogado' => [['tutor.inicio', ($u->abogado?->es_segunda_instancia ? 'Segunda Instancia (Corte)' : 'Mis postulantes'), 'inicio']],
         'practicante', 'postulante' => $u->practicante?->practicas()->exists()
             ? [['practicante.inicio', 'Mi práctica', 'inicio']]
             : [['postulante.inicio', 'Mi postulación', 'inicio']],

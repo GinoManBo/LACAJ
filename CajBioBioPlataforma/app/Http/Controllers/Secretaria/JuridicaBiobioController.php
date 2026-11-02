@@ -526,4 +526,43 @@ class JuridicaBiobioController extends Controller
 
         return back()->with('ok', 'Expediente formalmente despachado y archivado en CerradaHistorial. Se emitieron las notificaciones al postulante.');
     }
+
+    /**
+     * Carga asistida o registro de calificación de Segunda Instancia (Corte de Apelaciones).
+     */
+    public function calificarSegundaInstancia(Request $request, int $id)
+    {
+        $this->autorizar($request);
+
+        $p = Practica::with('practicante.postulante')->findOrFail($id);
+
+        $datos = $request->validate([
+            'concepto' => ['required', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))],
+            'observaciones' => ['required', 'string', 'min:10', 'max:3000'],
+        ], [
+            'concepto.required' => 'Seleccione una calificación en palabras para segunda instancia.',
+            'concepto.in' => 'Seleccione una opción válida de calificación.',
+            'observaciones.required' => 'Debe ingresar las observaciones de los alegatos en la Corte de Apelaciones.',
+            'observaciones.min' => 'Las observaciones deben contener al menos 10 caracteres.',
+        ]);
+
+        $opcion = Notas::OPCIONES[$datos['concepto']];
+
+        Calificacion::updateOrCreate(
+            ['practica_id' => $p->id, 'instancia' => 2],
+            [
+                'nota' => $opcion['valor'],
+                'fecha' => now()->toDateString(),
+                'registrada_por' => $request->user()->id,
+                'observaciones' => 'Registro 2ª Instancia por Jurídica Biobío (Corte de Apelaciones - '.$opcion['nombre'].'): '.$datos['observaciones'],
+            ]
+        );
+
+        Auditoria::registrar('practica.segunda_instancia_juridica', 'practica', $p->id, [
+            'concepto' => $opcion['nombre'],
+            'registrada_por' => $request->user()->id,
+        ], $request->user()->id);
+
+        return back()->with('ok', 'Calificación de Segunda Instancia (Corte de Apelaciones) registrada en concepto «'.$opcion['nombre'].'».');
+    }
 }

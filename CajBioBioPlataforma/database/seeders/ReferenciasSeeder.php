@@ -87,5 +87,8 @@ class ReferenciasSeeder extends Seeder
                 'capacidad' => $capacidad,
             ]);
         }
+
+        // Carga del catálogo oficial y completo de consultorios y unidades de la CAJ Biobío (192 sedes)
+        $this->call(ConsultoriosOficialesSeeder::class);
     }
 }

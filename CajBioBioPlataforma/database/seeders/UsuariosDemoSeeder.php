@@ -48,13 +48,22 @@ class UsuariosDemoSeeder extends Seeder
             ['Patricia', 'Cárdenas Soto', 'secretaria_loslagos@cajbiobio.cl', '10000014-8', 'secretaria', $regiones['LL'] ?? null, null],
             ['Pamela', 'Fuentes Almonacid', 'secretaria_aysen@cajbiobio.cl', '10000015-6', 'secretaria', $regiones['AI'] ?? null, null],
 
-            // Abogados Tutores y Gobernador Regional
-            ['Carlos', 'Muñoz Sepúlveda', 'abogado1@cajbiobio.cl', '10000004-0', 'abogado', null, 'civil'],
-            ['Andrea', 'Rojas Fuentes', 'abogado2@cajbiobio.cl', '10000005-9', 'abogado', null, 'penal'],
-            ['Rodrigo', 'Díaz Wörner', 'gobernador@cajbiobio.cl', '10000006-7', 'gobernador', null, null],
+            // Abogados Jefes de 1ª Instancia (Consultorios)
+            ['Carlos', 'Muñoz Sepúlveda', 'abogado1@cajbiobio.cl', '10000004-0', 'abogado', null, 'civil', false],
+            ['Andrea', 'Rojas Fuentes', 'abogado2@cajbiobio.cl', '10000005-9', 'abogado', null, 'penal', false],
+
+            // Abogado Jefe de 2ª Instancia (Corte de Apelaciones Concepción - Región del Biobío)
+            // Estructura flexible: cada región puede contar con uno o más abogados jefes de 2ª instancia
+            ['Mauricio', 'Vergara Toledo', 'corte_biobio@cajbiobio.cl', '10000016-4', 'abogado', $regiones['BI'] ?? null, 'corte', true],
+
+            // Gobernador Regional
+            ['Rodrigo', 'Díaz Wörner', 'gobernador@cajbiobio.cl', '10000006-7', 'gobernador', null, null, false],
         ];
 
-        foreach ($cuentas as [$nombre, $apellido, $email, $rut, $rol, $regionId, $area]) {
+        foreach ($cuentas as $fila) {
+            [$nombre, $apellido, $email, $rut, $rol, $regionId, $area] = array_slice($fila, 0, 7);
+            $esSegundaInstancia = $fila[7] ?? false;
+
             $u = Usuario::updateOrCreate(['email' => $email], [
                 'nombre' => $nombre, 'apellido' => $apellido, 'rut' => $rut, 'rol' => $rol,
                 'region_id' => $regionId, 'password' => '123456',
@@ -62,7 +71,11 @@ class UsuariosDemoSeeder extends Seeder
                 'intentos_fallidos' => 0, 'bloqueado_hasta' => null,
             ]);
             if ($area) {
-                Abogado::updateOrCreate(['usuario_id' => $u->id], ['area' => $area]);
+                Abogado::updateOrCreate(['usuario_id' => $u->id], [
+                    'area' => $area,
+                    'es_segunda_instancia' => (bool) $esSegundaInstancia,
+                    'region_id' => $esSegundaInstancia ? $regionId : null,
+                ]);
             }
         }
     }

@@ -12,7 +12,10 @@
         <h1 class="titulo-pagina">{{ $sede->nombre }}</h1>
         <p class="texto-suave" style="margin:.25rem 0 0">{{ $sede->region->nombre }}@if ($sede->comuna) · {{ $sede->comuna->nombre }}@endif</p>
     </div>
-    <x-badge :estado="$disp" />
+    <div style="display:flex;gap:0.75rem;align-items:center">
+        <x-badge :estado="$disp" />
+        <x-boton tipo="primario" tam="sm" :href="route('admin.consultorios.editar', $sede)">Editar Datos de Sede</x-boton>
+    </div>
 </div>
 
 <div class="rejilla-ficha">
