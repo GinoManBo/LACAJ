@@ -182,7 +182,7 @@ La gestión judicial en los consultorios y tribunales de la jurisdicción requer
 
 | Archivo | Comportamiento Anterior | Estado Actual |
 | :--- | :--- | :--- |
-| `CajBioBioPlataforma/database/migrations/2026_11_02_000001_agrega_segunda_instancia_a_abogados.php` | No existía. | Añade `es_segunda_instancia` y `region_id` en tabla `abogados`; `carta_presentacion_firmada`, `carta_presentacion_subida_at` y `abogado_segunda_instancia_id` en `practicas`. |
+| `CajBioBioPlataforma/database/migrations/2026_11_02_000001_agrega_segunda_instancia_a_abogados.php` | No existía. | Añade `es_segunda_instancia` y `region_id` (`unsignedSmallInteger` para compatibilidad estricta con `regiones.id` en MySQL) en `abogados`; `carta_presentacion_firmada`, `carta_presentacion_subida_at` y `abogado_segunda_instancia_id` en `practicas`. |
 | `CajBioBioPlataforma/app/Models/Abogado.php` | Atributos estándar de abogado tutor sin distinción de instancia ni región. | Incorpora `es_segunda_instancia` a casts, relación `region()`, relación `practicasSegundaInstancia()` y método `esSegundaInstancia()`. |
 | `CajBioBioPlataforma/app/Models/Practica.php` | Sin relaciones directas a calificaciones por instancia ni carta firmada. | Añade cast `carta_presentacion_subida_at`, relación `abogadoSegundaInstancia()`, y métodos auxiliares `calificacionPrimeraInstancia()` y `calificacionSegundaInstancia()`. |
 | `CajBioBioPlataforma/app/Models/Consultorio.php` | `ocupados()` contaba todas las prácticas activas sin considerar el vencimiento de los 6 meses. | Filtra únicamente las prácticas cuya `fecha_termino > today()`, liberando la vacante inmediatamente al cumplirse los 180 días. |
@@ -242,6 +242,35 @@ Se incorporó el catálogo oficial completo de las 192 unidades y sedes operativ
 
 ---
 
-## 5. Próximas Refactorizaciones (Pendientes)
+## 5. Depuración de Postulación: Supresión de Condición de Alumno / Año de Carrera y Exigencia Obligatoria de Certificado de Egreso
+
+### 5.1 Contexto y Motivación
+Para iniciar la práctica profesional judicial en la Corporación de Asistencia Judicial es requisito reglamentario indispensable haber completado y aprobado el plan curricular de la carrera de Derecho (calidad de egresado/a). En consecuencia:
+1. **Eliminación de "5° año" y selector de año de carrera:** La disyuntiva entre *"5° año"* y *"Egresado"* en el formulario era innecesaria y confusa, puesto que un estudiante en curso no puede iniciar la práctica. Se eliminó el campo y selector `anio_carrera` tanto del paso 3 del formulario de postulación como de la pantalla de corrección de datos del postulante (`postulante.datos`).
+2. **Eliminación del Certificado de Alumno Regular:** Se suprimió la opción de cargar `alumno_regular` de las opciones de subida de archivos en toda la plataforma de postulación.
+3. **Obligatoriedad del Certificado de Egreso:** El documento `certificado_egreso` se trasladó a `TIPOS_OBLIGATORIOS`. La plataforma valida su existencia en el paso 3 y bloquea el avance al paso 4 y al envío final si no ha sido adjuntado. Admite formatos PDF, JPG y PNG de hasta el límite configurado (`config('caj.max_upload_mb')`).
+4. **Persistencia y Compatibilidad:** Al enviar la postulación, `PostulacionController::enviar()` fija automáticamente `'anio_carrera' => 'egresado'`, manteniendo la consistencia de la base de datos y garantizando que las vistas de secretaría y seguimiento muestren la condición reglamentaria *"Egresado/a"*.
+
+---
+
+### 5.2 Componentes Afectados y Cambios Realizados
+
+| Archivo | Comportamiento Anterior | Estado Actual |
+| :--- | :--- | :--- |
+| `CajBioBioPlataforma/app/Http/Controllers/Postulacion/PostulacionController.php` | `TIPOS_OBLIGATORIOS` solo incluía cédula (frente y reverso); `TIPOS_OPCIONALES` incluía `alumno_regular` y `certificado_egreso`. Selector de `anio_carrera` obligatorio en `reglasPaso3()` y `CAMPOS_EDITABLES`. | `certificado_egreso` pasa a `TIPOS_OBLIGATORIOS` con validación de documento (PDF/JPG/PNG). Se elimina `alumno_regular` y la validación de `anio_carrera`. En `enviar()` se registra `'anio_carrera' => 'egresado'`. |
+| `CajBioBioPlataforma/resources/views/postulacion/paso3.blade.php` | Pedía selector de "Año de carrera" (5° año / Egresado) y ofrecía subir certificado de alumno regular en documentos opcionales. | Se retira el campo de año de carrera. Se incorpora bloque destacado y obligatorio para adjuntar el Certificado de Egreso. Se elimina la subida de certificado de alumno regular. |
+| `CajBioBioPlataforma/resources/views/postulacion/paso5.blade.php` | Mostraba en el resumen "Año de carrera: 5° año / Egresado" y listaba certificado de alumno regular en archivos. | Muestra "Condición académica: Egresado/a" y retira la etiqueta de alumno regular del desglose de adjuntos. |
+| `CajBioBioPlataforma/resources/views/postulante/datos.blade.php` | Permitía al postulante editar su "Año de carrera" entre 5° año y Egresado. | Se elimina el selector `anio_carrera` del formulario de actualización de datos. |
+| `CajBioBioPlataforma/resources/views/secretaria/_datos-postulante.blade.php` | Mostraba etiqueta "Año de carrera". | Actualizado a "Condición académica", mostrando por defecto "Egresado/a". |
+| `CajBioBioPlataforma/resources/views/secretaria/historial/ver.blade.php` | Mostraba etiqueta "Año de carrera". | Actualizado a "Condición académica", con valor predeterminado "Egresado/a". |
+| `CajBioBioPlataforma/resources/views/secretaria/practicas/ver.blade.php` | Mostraba etiqueta "Año de carrera". | Actualizado a "Condición académica", con valor predeterminado "Egresado/a". |
+| `CajBioBioPlataforma/resources/views/secretaria/postulaciones/index.blade.php` | Columna universidad con subetiqueta dependiente de `anio_carrera`. | Utiliza valor predeterminado "Egresado/a" si el campo está vacío. |
+| `CajBioBioPlataforma/tests/Feature/PostulacionTest.php` | Sin pruebas para el paso 3. | Incorpora pruebas que comprueban que el paso 3 exige obligatoriamente el Certificado de Egreso, no exige `anio_carrera` y avanza a paso 4. |
+| `CajBioBioPlataforma/tests/Feature/EditarDatosPostulanteTest.php` | Pasaba `'anio_carrera'` en la carga de datos del postulante. | Actualizado para excluir `anio_carrera` del formulario de edición. |
+| `CajBioBioPlataforma/docs/vistas/postulacion.md` | Documentaba `anio_carrera` y `alumno_regular` como opcional. | Refleja `certificado_egreso` como obligatorio y supresión de `alumno_regular` y `anio_carrera`. |
+
+---
+
+## 6. Próximas Refactorizaciones (Pendientes)
 
 *(Espacio reservado para documentar las siguientes fases de refactorización según se vayan abordando).*

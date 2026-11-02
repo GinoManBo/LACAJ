@@ -79,7 +79,7 @@
             @php $po = $p->postulante; $pref = $p->preferencias->sortBy('orden')->values(); @endphp
             <tr data-href="{{ route('secretaria.postulaciones.ver', $p->id) }}">
                 <td><a href="{{ route('secretaria.postulaciones.ver', $p->id) }}"><strong>{{ $po->nombre }} {{ $po->apellido }}</strong></a>@if ($po->rut)<span class="sec-menor">{{ $po->rut }}</span>@elseif ($p->origen === 'excel')<span class="sec-tag sec-tag-nuevo imp-tag">Datos por completar</span>@endif @if ($po->datos_actualizados_at)<span class="sec-tag sec-tag-otra">Datos actualizados</span>@endif</td>
-                <td>{{ $po->universidad }}<span class="sec-menor">{{ ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$po->anio_carrera] ?? $po->anio_carrera }}</span></td>
+                <td>{{ $po->universidad }}<span class="sec-menor">{{ ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$po->anio_carrera] ?? ($po->anio_carrera ?: 'Egresado/a') }}</span></td>
                 <td>@if ($pref->isNotEmpty()){{ $pref->first()->consultorio->nombre }}@if ($pref->count() > 1)<span class="sec-menor">+{{ $pref->count() - 1 }} más</span>@endif @else <span class="sec-menor">Sin preferencias</span>@endif</td>
                 <td>{{ $po->email }}<span class="sec-menor">{{ $po->telefono }}</span></td>
                 <td class="sec-num">{{ $p->fecha_postulacion->format('d-m-Y') }}</td>

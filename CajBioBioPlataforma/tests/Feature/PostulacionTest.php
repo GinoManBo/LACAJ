@@ -35,4 +35,39 @@ class PostulacionTest extends TestCase
         $this->post(route('postulacion.guardar', 2), ['rut' => '11111111-2'])
             ->assertSessionHasErrors(['nombre', 'apellido', 'rut', 'email', 'region_id', 'direccion', 'emergencia_nombre', 'antecedentes_salud']);
     }
+
+    public function test_paso3_exige_certificado_egreso_obligatorio_y_no_pide_anio_carrera(): void
+    {
+        $this->post(route('postulacion.guardar', 1), ['acepta' => '1']);
+        $region = \App\Models\Region::where('codigo', 'BI')->first();
+        $this->post(route('postulacion.guardar', 2), [
+            'nombre' => 'Ana', 'apellido' => 'Rojas', 'rut' => '20.000.001-3', 'fecha_nacimiento' => '2001-01-01',
+            'email' => 'ana@mail.cl', 'telefono' => '+56911112222', 'genero' => 'femenino', 'nacionalidad' => 'Chilena',
+            'discapacidad' => '0', 'region_id' => $region->id,
+            'comuna_id' => \App\Models\Comuna::where('region_id', $region->id)->value('id'),
+            'direccion' => 'Calle 1', 'emergencia_nombre' => 'Madre', 'emergencia_vinculo' => 'Madre',
+            'emergencia_telefono' => '+56933334444', 'antecedentes_salud' => 'Ninguno',
+        ]);
+
+        $espId = \App\Models\Especialidad::value('id');
+        $img = \Illuminate\Http\UploadedFile::fake()->image('cedula.jpg', 600, 400);
+
+        // Sin certificado de egreso falla
+        $this->post(route('postulacion.guardar', 3), [
+            'universidad' => 'Universidad de Concepción',
+            'especialidad_id' => $espId,
+            'cedula_frontal' => $img,
+            'cedula_reverso' => $img,
+        ])->assertSessionHasErrors('certificado_egreso');
+
+        // Con certificado de egreso (PDF) y sin anio_carrera avanza con éxito a paso 4
+        $pdf = \Illuminate\Http\UploadedFile::fake()->create('certificado_egreso.pdf', 500, 'application/pdf');
+        $this->post(route('postulacion.guardar', 3), [
+            'universidad' => 'Universidad de Concepción',
+            'especialidad_id' => $espId,
+            'cedula_frontal' => $img,
+            'cedula_reverso' => $img,
+            'certificado_egreso' => $pdf,
+        ])->assertRedirect(route('postulacion.paso', 4))->assertSessionDoesntHaveErrors(['anio_carrera', 'certificado_egreso']);
+    }
 }

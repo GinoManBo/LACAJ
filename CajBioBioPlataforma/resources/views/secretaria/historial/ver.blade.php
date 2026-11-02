@@ -4,7 +4,7 @@
 @php
     $c = $practica->consultorio; $a = $practica->abogado?->usuario;
     $cancelada = $practica->estado === 'cancelada'; $noInicio = $cancelada && $practica->cancelacion_antes_de_iniciar;
-    $anio = ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$postulante->anio_carrera] ?? $postulante->anio_carrera;
+    $anio = ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$postulante->anio_carrera] ?? ($postulante->anio_carrera ?: 'Egresado/a');
 @endphp
 <div class="sec-cabecera">
     <div>
@@ -65,7 +65,7 @@
             <x-tarjeta titulo="Postulante">
                 <dl class="datos">
                     <div><dt>RUT</dt><dd>{{ $postulante->rut }}</dd></div>
-                    <div><dt>Año de carrera</dt><dd>{{ $anio }}</dd></div>
+                    <div><dt>Condición académica</dt><dd>{{ $anio }}</dd></div>
                     <div><dt>Correo</dt><dd>{{ $postulante->email }}</dd></div>
                     <div><dt>Teléfono</dt><dd>{{ $postulante->telefono }}</dd></div>
                     <div class="ancho-completo"><dt>Domicilio</dt><dd>{{ $postulante->direccion }}, {{ $postulante->comuna?->nombre }}</dd></div>

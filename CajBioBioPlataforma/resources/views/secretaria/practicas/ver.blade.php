@@ -4,7 +4,7 @@
 @php
     $postulante = $practica->practicante->postulante; $nom = $postulante->nombre.' '.$postulante->apellido;
     $est = $practica->estado_visible; $c = $practica->consultorio; $a = $practica->abogado?->usuario; $e = $practica->estadistica;
-    $anio = ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$postulante->anio_carrera] ?? $postulante->anio_carrera;
+    $anio = ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$postulante->anio_carrera] ?? ($postulante->anio_carrera ?: 'Egresado/a');
 @endphp
 <div class="sec-cabecera">
     <div>
@@ -21,7 +21,7 @@
     <x-tarjeta titulo="Postulante">
         <dl class="datos">
             <div><dt>RUT</dt><dd>{{ $postulante->rut }}</dd></div>
-            <div><dt>Año de carrera</dt><dd>{{ $anio }}</dd></div>
+            <div><dt>Condición académica</dt><dd>{{ $anio }}</dd></div>
             <div><dt>Correo</dt><dd><a href="mailto:{{ $postulante->email }}">{{ $postulante->email }}</a></dd></div>
             <div><dt>Teléfono</dt><dd>{{ $postulante->telefono }}</dd></div>
             <div class="ancho-completo"><dt>Domicilio</dt><dd>{{ $postulante->direccion }}, {{ $postulante->comuna?->nombre }}</dd></div>

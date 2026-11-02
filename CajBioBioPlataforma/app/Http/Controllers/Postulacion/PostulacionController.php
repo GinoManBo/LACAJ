@@ -28,9 +28,9 @@ class PostulacionController extends Controller
 {
     public const PASOS = [1 => 'Carta y términos', 2 => 'Datos personales', 3 => 'Antecedentes educativos', 4 => 'Consultorio y fecha', 5 => 'Resumen'];
 
-    public const TIPOS_OBLIGATORIOS = ['cedula_frontal', 'cedula_reverso'];
+    public const TIPOS_OBLIGATORIOS = ['cedula_frontal', 'cedula_reverso', 'certificado_egreso'];
 
-    public const TIPOS_OPCIONALES = ['alumno_regular', 'certificado_egreso'];
+    public const TIPOS_OPCIONALES = [];
 
     private const CLAVE = 'postulacion';
 
@@ -134,7 +134,7 @@ class PostulacionController extends Controller
                 'discapacidad' => (bool) $d['discapacidad'],
                 'discapacidad_descripcion' => $d['discapacidad'] ? ($d['discapacidad_descripcion'] ?? null) : null,
                 'region_id' => $d['region_id'], 'comuna_id' => $d['comuna_id'], 'direccion' => $d['direccion'],
-                'universidad' => $d['universidad'], 'anio_carrera' => $d['anio_carrera'],
+                'universidad' => $d['universidad'], 'anio_carrera' => 'egresado',
                 'especialidad_id' => $d['especialidad_id'], 'antecedentes_salud' => $d['antecedentes_salud'],
                 'emergencia_nombre' => $d['emergencia_nombre'], 'emergencia_vinculo' => $d['emergencia_vinculo'],
                 'emergencia_telefono' => $d['emergencia_telefono'], 'emergencia_email' => $d['emergencia_email'] ?? null,
@@ -183,7 +183,7 @@ class PostulacionController extends Controller
     public const CAMPOS_EDITABLES = [
         'email', 'telefono', 'genero', 'nacionalidad', 'discapacidad', 'discapacidad_descripcion', 'region_id', 'comuna_id', 'direccion',
         'emergencia_nombre', 'emergencia_vinculo', 'emergencia_telefono', 'emergencia_email', 'antecedentes_salud',
-        'universidad', 'anio_carrera', 'especialidad_id',
+        'universidad', 'especialidad_id',
     ];
 
     public function validarEdicion(array $input): array
@@ -221,7 +221,6 @@ class PostulacionController extends Controller
     {
         return [
             'universidad' => ['required', 'string', 'max:160'],
-            'anio_carrera' => ['required', Rule::in(['quinto', 'egresado'])],
             'especialidad_id' => ['required', Rule::exists('especialidades', 'id')->where('activo', true)],
         ];
     }
@@ -264,7 +263,8 @@ class PostulacionController extends Controller
         $reglaDoc = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:'.(config('caj.max_upload_mb', 8) * 1024)];
         $reglas = [];
         foreach (self::TIPOS_OBLIGATORIOS as $t) {
-            $reglas[$t] = [isset($actuales[$t]) ? 'nullable' : 'required', ...$reglaImagen];
+            $reglaTipo = in_array($t, ['cedula_frontal', 'cedula_reverso'], true) ? $reglaImagen : $reglaDoc;
+            $reglas[$t] = [isset($actuales[$t]) ? 'nullable' : 'required', ...$reglaTipo];
         }
         foreach (self::TIPOS_OPCIONALES as $t) {
             $reglas[$t] = ['nullable', ...$reglaDoc];

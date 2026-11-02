@@ -5,7 +5,6 @@
     $generos = ['femenino' => 'Femenino', 'masculino' => 'Masculino', 'otro' => 'Otro', 'prefiere_no_decir' => 'Prefiero no decirlo'];
     $etiquetasArchivo = [
         'cedula_frontal' => 'Cédula, lado frontal', 'cedula_reverso' => 'Cédula, lado reverso',
-        'alumno_regular' => 'Certificado de alumno regular',
         'certificado_egreso' => 'Certificado de egreso',
     ];
     $fmtFecha = fn ($f) => $f ? \Illuminate\Support\Carbon::parse($f)->translatedFormat('l j \d\e F \d\e Y') : '—';
@@ -64,7 +63,7 @@
             <x-slot:acciones><a class="btn btn-fantasma btn-sm" href="{{ route('postulacion.paso', 3) }}">Editar<span class="sr-only"> antecedentes educativos</span></a></x-slot:acciones>
             <dl class="datos">
                 <div class="ancho-completo"><dt>Universidad</dt><dd>{{ $educ['universidad'] ?? '—' }}</dd></div>
-                <div><dt>Año de carrera</dt><dd>{{ ['quinto' => '5° año', 'egresado' => 'Egresado'][$educ['anio_carrera'] ?? ''] ?? '—' }}</dd></div>
+                <div><dt>Condición académica</dt><dd>Egresado/a</dd></div>
                 <div><dt>Especialidad</dt><dd>{{ $especialidad?->nombre ?? '—' }}</dd></div>
             </dl>
         </x-tarjeta>
