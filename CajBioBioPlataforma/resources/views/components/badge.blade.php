@@ -3,6 +3,8 @@
     $etiquetas = [
         'pendiente' => 'Pendiente', 'aceptada' => 'Aceptada', 'rechazada' => 'Rechazada', 'derivada' => 'Derivada',
         'activa' => 'En curso', 'por_iniciar' => 'Por iniciar', 'finalizada' => 'Finalizada', 'cancelada' => 'Cancelada',
+        'remitida_biobio' => 'Remitida a Biobío', 'nivelada_biobio' => 'Nivelada en Biobío',
+        'rechazada_sancion' => 'Rechazada por Sanción', 'cerrada_historial' => 'Cerrada / Despachada',
         'urgente' => 'Urgente', 'aviso' => 'Aviso', 'informativo' => 'Informativo',
         'muchos' => 'Muchos cupos', 'pocos' => 'Pocos cupos', 'sin' => 'Sin cupos',
     ];

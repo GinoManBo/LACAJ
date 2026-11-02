@@ -1,7 +1,7 @@
 @php
     $u = Auth::user();
     $noLeidas = \App\Models\Notificacion::where('usuario_destino_id', $u->id)->whereNull('leida_at')->count();
-    $etiquetasRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'abogado' => 'Abogado tutor', 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
+    $etiquetasRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'juridica_central' => 'Jurídica Central Biobío', 'abogado' => 'Abogado tutor', 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
     $iconos = [
         'inicio' => 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
         'lista' => 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
@@ -11,11 +11,17 @@
     ];
     $menu = match ($u->rol) {
         'administrador' => [['admin.inicio', 'Administración', 'inicio']],
-        'secretaria' => [
+        'secretaria' => array_merge([
             ['secretaria.panel', 'Panel general', 'inicio'],
             ['secretaria.postulaciones', 'Postulaciones', 'lista'],
             ['secretaria.practicas', 'Prácticas activas', 'maletin'],
             ['secretaria.historial', 'Historial', 'reloj'],
+            ['secretaria.consultorios', 'Consultorios', 'edificio'],
+        ], ($u->region && $u->region->codigo === 'BI') ? [['secretaria.juridica.index', 'Jurídica Central', 'lista']] : []),
+        'juridica_central' => [
+            ['secretaria.juridica.postulaciones', 'Antes: Postulaciones', 'lista'],
+            ['secretaria.juridica.index', 'Después: Expedientes', 'maletin'],
+            ['secretaria.historial', 'Historial general', 'reloj'],
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
         ],
         'abogado' => [['tutor.inicio', 'Mis postulantes', 'inicio']],

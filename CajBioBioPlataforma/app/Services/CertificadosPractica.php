@@ -19,7 +19,10 @@ class CertificadosPractica
         if ($p->estado === 'cancelada') {
             return 'La práctica fue cancelada.';
         }
-        if ($p->estado !== 'finalizada') {
+        if ($p->estado === 'rechazada_sancion') {
+            return 'La práctica fue rechazada por causal disciplinaria fundada.';
+        }
+        if (! in_array($p->estado, ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true)) {
             return 'La práctica aún no está finalizada (estado actual: '.str_replace('_', ' ', $p->estado).').';
         }
         $ev = $p->evaluacion;

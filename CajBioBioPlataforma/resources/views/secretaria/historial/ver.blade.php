@@ -11,8 +11,36 @@
         <div class="sec-titulo-ficha"><h1 class="titulo-pagina">{{ $postulante->nombre }} {{ $postulante->apellido }}</h1><x-badge :estado="$practica->estado" />@if ($noInicio)<span class="sec-tag sec-tag-no-inicio">NO INICIÓ</span>@endif</div>
         <p class="sec-subtitulo">{{ $postulante->universidad }} · {{ $c->nombre }}</p>
     </div>
-    <x-boton tipo="secundario" :href="route('secretaria.historial')">@include('secretaria._icono', ['n' => 'volver']) Volver al historial</x-boton>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        @if ($puedeRemitir)
+            <form action="{{ route('secretaria.historial.remitir_biobio', $practica->id) }}" method="POST" onsubmit="return confirm('¿Cerrar la competencia regional y remitir el expediente visado por el Director Regional a Jurídica Central de Biobío (Concepción)? Una vez remitido, la región ya no podrá modificarlo y quedará en modo solo lectura.');">
+                @csrf
+                <x-boton tipo="primario">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.4rem;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    Cerrar Competencia Regional y Remitir a Jurídica Biobío
+                </x-boton>
+            </form>
+        @endif
+        <x-boton tipo="secundario" :href="route('secretaria.historial')">@include('secretaria._icono', ['n' => 'volver']) Volver al historial</x-boton>
+    </div>
 </div>
+
+@if ($esSoloLectura)
+    <div class="alerta alerta-info" role="note" style="margin:1rem 0;background:var(--azul-50);border:1px solid var(--azul-200);border-radius:.5rem;padding:.75rem 1rem;display:flex;gap:.75rem;align-items:flex-start;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--azul-700);flex-shrink:0;margin-top:.15rem;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>
+            <strong style="color:var(--azul-900)">Competencia territorial regional cerrada (Modo Solo Lectura)</strong>
+            <div style="font-size:.88rem;color:var(--azul-800);margin-top:.2rem;">Este expediente fue remitido a la Secretaría Jurídica Central de Biobío (Concepción){{ $practica->remitida_at ? ' el '.$practica->remitida_at->format('d-m-Y H:i') : '' }}. La Secretaría Regional ya no tiene competencia para alterar notas ni resoluciones finales.</div>
+            @if ($practica->estado === 'nivelada_biobio')
+                <div style="margin-top:.35rem;font-size:.85rem;color:var(--verde-800);font-weight:600;">Nota nivelada de oficio a Buena (5.0) en Jurídica Biobío. Justificación: {{ $practica->justificacion_nivelacion }}</div>
+            @elseif ($practica->estado === 'rechazada_sancion')
+                <div style="margin-top:.35rem;font-size:.85rem;color:var(--rojo-800);font-weight:600;">Rechazada por Jurídica Biobío por causal disciplinaria fundada: {{ $practica->causal_rechazo_sancion }}</div>
+            @elseif ($practica->estado === 'cerrada_historial')
+                <div style="margin-top:.35rem;font-size:.85rem;color:var(--azul-900);font-weight:600;">Expediente cerrado y despachado formalmente al postulante por Jurídica Biobío{{ $practica->despachada_at ? ' el '.$practica->despachada_at->format('d-m-Y') : '' }}.</div>
+            @endif
+        </div>
+    </div>
+@endif
 
 <div class="sec-pestanas" role="tablist" aria-label="Secciones de la ficha">
     @foreach (['resumen' => 'Resumen', 'documentos' => 'Documentos', 'calificaciones' => 'Calificaciones'] as $k => $t)
@@ -67,9 +95,11 @@
         <div class="sec-columna">
             <x-tarjeta acento>
                 <div class="sec-final">
-                    <div><div class="indicador-valor">{{ $practica->nota_practica !== null ? number_format($practica->nota_practica, 1, ',', '') : '—' }}</div><div class="indicador-etiqueta">Nota de la práctica</div></div>
                     <div>
-                        @if ($conceptoFinal)<strong style="font:700 1.4rem var(--fuente-titulo);color:var(--azul-900)">{{ $conceptoFinal }}</strong>@endif
+                        @if ($conceptoFinal)<strong style="font:700 1.8rem var(--fuente-titulo);color:var(--azul-900)">{{ $conceptoFinal }}</strong>@endif
+                        <div class="indicador-etiqueta">Calificación Institucional</div>
+                    </div>
+                    <div>
                         <div style="margin-top:.4rem"><x-badge :estado="$evaluacion->aprobado ? 'activa' : 'cancelada'" :texto="$evaluacion->aprobado ? 'HA APROBADO' : 'NO HA APROBADO'" /></div>
                     </div>
                 </div>
@@ -78,7 +108,7 @@
                 <x-tarjeta titulo="Criterios evaluados">
                     <ul class="sec-criterios">
                         @foreach ($criterios as $cr)
-                            <li><span>{{ $cr['etiqueta'] }}@if (! empty($cr['concepto']))<span class="sec-menor">{{ $cr['concepto'] }}</span>@endif</span><span class="sec-nota-valor">{{ is_numeric($cr['nota']) ? number_format($cr['nota'], 1, ',', '') : $cr['nota'] }}</span></li>
+                            <li><span>{{ $cr['etiqueta'] }}</span><span class="sec-nota-valor" style="font-weight:700;color:var(--azul-900)">{{ $cr['concepto'] }}</span></li>
                         @endforeach
                     </ul>
                 </x-tarjeta>

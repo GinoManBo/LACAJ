@@ -22,8 +22,8 @@ class Usuario extends Authenticatable
         'firma_actualizada_at' => 'datetime',
     ];
 
-    public const ROLES = ['administrador', 'secretaria', 'abogado', 'postulante', 'gobernador', 'practicante'];
-    public const ROLES_GESTIONABLES = ['administrador', 'secretaria', 'abogado', 'gobernador'];
+    public const ROLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'postulante', 'gobernador', 'practicante'];
+    public const ROLES_GESTIONABLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'gobernador'];
 
     public function region() { return $this->belongsTo(Region::class); }
     public function abogado() { return $this->hasOne(Abogado::class, 'usuario_id'); }
@@ -37,6 +37,7 @@ class Usuario extends Authenticatable
         return match ($this->rol) {
             'administrador' => route('admin.inicio'),
             'secretaria' => route('secretaria.panel'),
+            'juridica_central' => route('secretaria.juridica.index'),
             'abogado' => route('tutor.inicio'),
             'practicante' => route('practicante.inicio'),
             'gobernador' => route('gobernador.inicio'),

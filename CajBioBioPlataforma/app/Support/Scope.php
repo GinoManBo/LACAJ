@@ -9,7 +9,8 @@ final class Scope
 {
     public static function regionId(Usuario $u): ?int
     {
-        if ($u->rol === 'administrador') {
+        // Administrador y Jurídica Central (Biobío Concepción) tienen alcance nacional/central
+        if ($u->rol === 'administrador' || $u->rol === 'juridica_central') {
             return null;
         }
         if ($u->rol === 'secretaria' && $u->region_id) {
