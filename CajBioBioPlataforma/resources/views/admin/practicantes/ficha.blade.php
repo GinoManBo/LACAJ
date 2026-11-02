@@ -1,10 +1,10 @@
-@extends('layouts.portal', ['migas' => [['Administración', route('admin.inicio')], ['Practicantes', route('admin.practicantes.index')], [$practica->practicante->postulante->nombre.' '.$practica->practicante->postulante->apellido]]])
-@section('titulo', 'Ficha de practicante')
+@extends('layouts.portal', ['migas' => [['Administración', route('admin.inicio')], ['Postulantes', route('admin.practicantes.index')], [$practica->practicante->postulante->nombre.' '.$practica->practicante->postulante->apellido]]])
+@section('titulo', 'Ficha de postulante')
 @php
     $po = $practica->practicante->postulante;
     $accionable = in_array($practica->estado, ['por_iniciar', 'activa'], true);
     $etiquetasEstado = ['por_iniciar' => 'Por iniciar', 'activa' => 'En curso', 'finalizada' => 'Finalizada', 'cancelada' => 'Cancelada'];
-    $etiquetasMotivo = ['conducta' => 'Conducta del practicante', 'decision' => 'Decisión del practicante', 'error_registro' => 'Error de registro', 'otro' => 'Otro motivo'];
+    $etiquetasMotivo = ['conducta' => 'Conducta del postulante', 'decision' => 'Decisión del postulante', 'error_registro' => 'Error de registro', 'otro' => 'Otro motivo'];
     $opcAbogados = $abogados->mapWithKeys(fn ($a) => [$a->id => $a->usuario->nombre.' '.$a->usuario->apellido.' · '.ucfirst($a->area)])->all();
     $opcEstados = collect($estados)->mapWithKeys(fn ($e) => [$e => $etiquetasEstado[$e] ?? $e])->all();
     $discapacidadActual = old('discapacidad', $po->discapacidad ? '1' : '0');
@@ -32,7 +32,7 @@
 
 <div class="rejilla-ficha">
     <div class="columna">
-        <x-tarjeta titulo="Datos del practicante">
+        <x-tarjeta titulo="Datos del postulante">
             <form method="POST" action="{{ route('admin.practicantes.actualizar', $practica) }}" class="formulario" novalidate>
                 @csrf @method('PUT')
                 <div class="rejilla-campos">
@@ -107,7 +107,7 @@
             @else
                 <form method="POST" action="{{ route('admin.practicantes.cancelar', $practica) }}" id="form-cancelar" class="formulario" novalidate>
                     @csrf
-                    <p class="texto-suave" style="margin:0">Libera el cupo en la sede y deja constancia en el historial. Puede reactivarse después desde «Datos del practicante».</p>
+                    <p class="texto-suave" style="margin:0">Libera el cupo en la sede y deja constancia en el historial. Puede reactivarse después desde «Datos del postulante».</p>
                     <div class="campo @error('motivo') tiene-error @enderror" data-grupo-obligatorio="Elige un motivo.">
                         <span class="campo-etiqueta" id="et-motivo">Motivo<span class="campo-obligatorio" aria-hidden="true">*</span></span>
                         <div class="radios" role="radiogroup" aria-labelledby="et-motivo">

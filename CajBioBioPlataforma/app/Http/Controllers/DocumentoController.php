@@ -45,9 +45,19 @@ class DocumentoController extends Controller
             'administrador' => true,
             'secretaria' => $u->region_id !== null && $regionDoc === $u->region_id,
             'abogado' => $u->abogado && $practica && $practica->abogado_id === $u->abogado->id,
-            'practicante' => $this->esDelPracticante($u, $d, $practica),
+            'practicante', 'postulante' => $this->esDelPracticanteOPostulante($u, $d, $practica),
             default => false,
         };
+    }
+
+    private function esDelPracticanteOPostulante(Usuario $u, Documento $d, $practica): bool
+    {
+        if ($this->esDelPracticante($u, $d, $practica)) {
+            return true;
+        }
+
+        // Si es un postulante en etapa de revisión, puede ver sus propios documentos adjuntos
+        return $d->postulacion && $d->postulacion->postulante?->rut === $u->rut;
     }
 
     private function esDelPracticante(Usuario $u, Documento $d, $practica): bool

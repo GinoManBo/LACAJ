@@ -4,8 +4,8 @@
 @if (session('credenciales'))
     @php $cred = session('credenciales'); @endphp
     <section class="sec-credenciales" role="alert" aria-labelledby="cred-titulo">
-        <h2 id="cred-titulo">Cuenta del practicante creada</h2>
-        <p>Entregue estos datos al practicante. La contraseña temporal se muestra solo esta vez y se le pedirá cambiarla al ingresar.</p>
+        <h2 id="cred-titulo">Cuenta del postulante creada</h2>
+        <p>Entregue estos datos al postulante. La contraseña temporal se muestra solo esta vez y se le pedirá cambiarla al ingresar.</p>
         <div class="sec-cred-fila"><span class="sec-cred-correo">{{ $cred['email'] }}</span></div>
         <div class="sec-cred-fila">
             <code class="sec-cred-valor" id="cred-pass">{{ $cred['password'] }}</code>
@@ -21,6 +21,18 @@
             setTimeout(() => (b.querySelector('span').textContent = 'Copiar contraseña'), 2500);
         });
     </script>
+@endif
+
+@if (session('practica_creada_id'))
+    <div class="alerta alerta-info" role="status" style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div>
+            <strong>Siguiente paso administrativo:</strong>
+            Descargue la Carta de Presentación tipo, recabe la firma autorizada institucional y cárguela firmada en la ficha de la práctica para oficializar el inicio y notificar al Abogado Jefe.
+        </div>
+        <x-boton tipo="primario" tam="sm" :href="route('secretaria.practicas.ver', session('practica_creada_id'))">
+            Tramitar Carta de Presentación
+        </x-boton>
+    </div>
 @endif
 
 <div class="sec-cabecera">
@@ -67,7 +79,7 @@
             @php $po = $p->postulante; $pref = $p->preferencias->sortBy('orden')->values(); @endphp
             <tr data-href="{{ route('secretaria.postulaciones.ver', $p->id) }}">
                 <td><a href="{{ route('secretaria.postulaciones.ver', $p->id) }}"><strong>{{ $po->nombre }} {{ $po->apellido }}</strong></a>@if ($po->rut)<span class="sec-menor">{{ $po->rut }}</span>@elseif ($p->origen === 'excel')<span class="sec-tag sec-tag-nuevo imp-tag">Datos por completar</span>@endif @if ($po->datos_actualizados_at)<span class="sec-tag sec-tag-otra">Datos actualizados</span>@endif</td>
-                <td>{{ $po->universidad }}<span class="sec-menor">{{ ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$po->anio_carrera] ?? $po->anio_carrera }}</span></td>
+                <td>{{ $po->universidad }}<span class="sec-menor">{{ ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$po->anio_carrera] ?? ($po->anio_carrera ?: 'Egresado/a') }}</span></td>
                 <td>@if ($pref->isNotEmpty()){{ $pref->first()->consultorio->nombre }}@if ($pref->count() > 1)<span class="sec-menor">+{{ $pref->count() - 1 }} más</span>@endif @else <span class="sec-menor">Sin preferencias</span>@endif</td>
                 <td>{{ $po->email }}<span class="sec-menor">{{ $po->telefono }}</span></td>
                 <td class="sec-num">{{ $p->fecha_postulacion->format('d-m-Y') }}</td>

@@ -112,7 +112,7 @@ class SecretariaTest extends TestCase
         $this->assertTrue($practica->fecha_termino->equalTo($practica->fecha_inicio->copy()->addMonths(6)));
 
         $cuenta = Usuario::where('email', 'post@test.cl')->firstOrFail();
-        $this->assertSame('practicante', $cuenta->rol);
+        $this->assertSame('postulante', $cuenta->rol);
         $this->assertTrue($cuenta->debe_cambiar_password);
         $this->assertSame($cuenta->id, Practicante::firstOrFail()->usuario_id);
         $this->assertDatabaseHas('notificaciones', ['usuario_destino_id' => $uAbogado->id, 'tipo' => 'informativo']);

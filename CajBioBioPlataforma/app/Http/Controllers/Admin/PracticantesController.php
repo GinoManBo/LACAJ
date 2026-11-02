@@ -79,7 +79,7 @@ class PracticantesController extends Controller
         $destino = Consultorio::findOrFail($d['consultorio_id']);
         PracticasAdmin::trasladar($practica, $destino, $d['abogado_id'] ?? null, $d['motivo'] ?? null, $request->user()->id);
 
-        return redirect()->route('admin.practicantes.ver', $practica)->with('ok', "Practicante trasladado a {$destino->nombre}.");
+        return redirect()->route('admin.practicantes.ver', $practica)->with('ok', "Postulante trasladado a {$destino->nombre}.");
     }
 
     public function cancelar(Request $request, Practica $practica)

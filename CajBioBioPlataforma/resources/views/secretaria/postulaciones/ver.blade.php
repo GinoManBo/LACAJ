@@ -1,7 +1,12 @@
-@extends('layouts.portal', ['migas' => [['Postulaciones', route('secretaria.postulaciones')], [$postulante->nombre.' '.$postulante->apellido]]])
+@extends('layouts.portal', ['migas' => [
+    auth()->user()->rol === 'juridica_central' ? ['Antes: Postulaciones', route('secretaria.juridica.postulaciones')] : ['Postulaciones', route('secretaria.postulaciones')],
+    [$postulante->nombre.' '.$postulante->apellido]
+]])
 @section('titulo', 'Postulación de '.$postulante->nombre.' '.$postulante->apellido)
 @section('contenido')
 @php
+    $esJuridica = auth()->user()->rol === 'juridica_central';
+    $esExterno = $esJuridica && ($postulacion->region?->codigo ?? $postulante->region?->codigo) !== 'BI';
     $prefs = $postulacion->preferencias->sortBy('orden')->values();
     $reabrir = $errors->has('consultorio_id') || $errors->has('abogado_id');
     $elegido = old('consultorio_id');
@@ -9,7 +14,13 @@
 
 <div class="sec-titulo-ficha">
     <div>
-        <div class="sec-titulo-ficha"><h1 class="titulo-pagina">{{ $postulante->nombre }} {{ $postulante->apellido }}</h1><x-badge :estado="$postulacion->estado" /></div>
+        <div class="sec-titulo-ficha">
+            <h1 class="titulo-pagina">{{ $postulante->nombre }} {{ $postulante->apellido }}</h1>
+            <x-badge :estado="$postulacion->estado" />
+            @if ($esExterno)
+                <span class="sec-tag" style="background:#f3e8ff;color:#6b21a8;font-weight:700;">EXTERNO ({{ $postulacion->region?->codigo ?? 'EXT' }})</span>
+            @endif
+        </div>
         <p class="sec-subtitulo">{{ $postulante->universidad }} · Postuló el {{ $postulacion->fecha_postulacion->format('d-m-Y') }}</p>
         @if ($postulante->datos_actualizados_at)
             <p class="sec-subtitulo"><span class="sec-tag sec-tag-otra">Datos actualizados</span> El postulante actualizó sus datos el {{ $postulante->datos_actualizados_at->format('d-m-Y H:i') }}</p>
@@ -75,20 +86,39 @@
     </div>
 
     <aside class="sec-lateral">
-        <x-tarjeta titulo="Resolver postulación" acento>
-            <div class="sec-decidir">
-                <dl>
-                    <div><dt>Región que la gestiona</dt><dd>{{ $postulante->region?->nombre }}</dd></div>
-                    <div><dt>Inicio solicitado</dt><dd>{{ $postulacion->fecha_inicio_solicitada?->format('d-m-Y') ?? 'Por completar' }}</dd></div>
-                </dl>
-                <p>Asigne un consultorio para aceptar, o rechace la postulación indicando el motivo.</p>
-                <x-boton data-modal-abrir="modal-aceptar">Aceptar y asignar consultorio</x-boton>
-                <x-boton tipo="peligro" data-modal-abrir="modal-rechazar">Rechazar postulación</x-boton>
-            </div>
-        </x-tarjeta>
+        @if ($esExterno)
+            <x-tarjeta titulo="Competencia territorial" acento>
+                <div class="sec-decidir">
+                    <dl>
+                        <div><dt>Región de origen</dt><dd><strong>{{ $postulacion->region?->nombre ?? $postulante->region?->nombre }}</strong></dd></div>
+                        <div><dt>Inicio solicitado</dt><dd>{{ $postulacion->fecha_inicio_solicitada?->format('d-m-Y') ?? 'Por completar' }}</dd></div>
+                    </dl>
+                    <div style="background:#f3e8ff; border:1px solid #d8b4fe; color:#581c87; padding:1rem; border-radius:.5rem; font-size:.88rem; line-height:1.45; margin-top:.5rem;">
+                        <div style="font-weight:700; margin-bottom:.35rem; display:flex; align-items:center; gap:.5rem;">
+                            <span class="sec-tag" style="background:#6b21a8;color:#ffffff;font-size:.7rem;">SOLO LECTURA</span>
+                            <span>Postulación Regional</span>
+                        </div>
+                        <p style="margin:0;">Como Secretaría Jurídica Central (Biobío), su acceso en esta etapa previa es únicamente de supervisión. La asignación de consultorio, aceptación o rechazo es <strong>competencia exclusiva de la Secretaría Regional de origen</strong>.</p>
+                    </div>
+                </div>
+            </x-tarjeta>
+        @else
+            <x-tarjeta titulo="Resolver postulación" acento>
+                <div class="sec-decidir">
+                    <dl>
+                        <div><dt>Región que la gestiona</dt><dd>{{ $postulante->region?->nombre }}</dd></div>
+                        <div><dt>Inicio solicitado</dt><dd>{{ $postulacion->fecha_inicio_solicitada?->format('d-m-Y') ?? 'Por completar' }}</dd></div>
+                    </dl>
+                    <p>Asigne un consultorio para aceptar, o rechace la postulación indicando el motivo.</p>
+                    <x-boton data-modal-abrir="modal-aceptar">Aceptar y asignar consultorio</x-boton>
+                    <x-boton tipo="peligro" data-modal-abrir="modal-rechazar">Rechazar postulación</x-boton>
+                </div>
+            </x-tarjeta>
+        @endif
     </aside>
 </div>
 
+@unless ($esExterno)
 <x-modal id="modal-rechazar" titulo="Rechazar postulación">
     <form id="form-rechazar" method="POST" action="{{ route('secretaria.postulaciones.rechazar', $postulacion->id) }}" class="sec-asignar">
         @csrf
@@ -207,4 +237,5 @@
     @if ($reabrir) modal.showModal(); @endif
 })();
 </script>
+@endunless
 @endsection

@@ -18,7 +18,22 @@ class RequiereRol
 
             return redirect()->route('login')->withErrors(['email' => 'Cuenta desactivada.']);
         }
-        if (! in_array($usuario->rol, $roles, true)) {
+        // =========================================================================
+        // UNIFICACIÓN DE ROLES (compatibilidad bidireccional):
+        // Para asegurar que nada se rompa en rutas, vistas o controladores históricos,
+        // 'postulante' y 'practicante' son reconocidos como roles equivalentes al
+        // verificar la autorización de acceso a portales.
+        // =========================================================================
+        $esValido = in_array($usuario->rol, $roles, true);
+        if (! $esValido) {
+            if ($usuario->rol === 'postulante' && in_array('practicante', $roles, true)) {
+                $esValido = true;
+            } elseif ($usuario->rol === 'practicante' && in_array('postulante', $roles, true)) {
+                $esValido = true;
+            }
+        }
+
+        if (! $esValido) {
             abort(403, 'No tiene permiso para acceder a esta sección.');
         }
 

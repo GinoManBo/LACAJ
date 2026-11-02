@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Secretaria;
 use App\Http\Controllers\Controller;
 use App\Models\Consultorio;
 use App\Models\Postulacion;
+use App\Models\Region;
 use App\Services\ImportadorPostulaciones;
 use App\Services\Postulaciones;
 use App\Services\Practicas;
@@ -17,6 +18,11 @@ class PostulacionesController extends Controller
 
     public function index(Request $request)
     {
+        // Jurídica Central cuenta con su pantalla separada de supervisión nacional
+        if ($request->user()->rol === 'juridica_central') {
+            return redirect()->route('secretaria.juridica.postulaciones');
+        }
+
         $region = Scope::regionId($request->user());
         $q = trim((string) $request->query('q'));
 
@@ -56,7 +62,8 @@ class PostulacionesController extends Controller
             'postulante.comuna', 'postulante.region', 'postulante.especialidad',
             'preferencias.consultorio.comuna', 'documentos', 'notas.autor', 'derivaciones.regionOrigen', 'derivaciones.regionDestino',
         );
-        $region = Scope::regionId($request->user());
+        $esJuridica = $request->user()->rol === 'juridica_central';
+        $region = $esJuridica ? Region::where('codigo', 'BI')->value('id') : Scope::regionId($request->user());
 
         $postuloIds = $p->preferencias->pluck('consultorio_id')->all();
         $consultorios = Consultorio::with('region', 'comuna', 'abogados.usuario')->where('activo', true)->orderBy('nombre')->get()
@@ -85,6 +92,12 @@ class PostulacionesController extends Controller
     public function aceptar(Request $request, int $id)
     {
         $p = $this->postulacion($request, $id);
+
+        // Competencia territorial: Jurídica Central solo puede tramitar admisiones de la Región del Biobío
+        if ($request->user()->rol === 'juridica_central' && $p->region?->codigo !== 'BI') {
+            abort(403, 'La Secretaría Jurídica Central solo puede tramitar admisiones de la Región del Biobío. Las postulaciones de regiones externas son competencia exclusiva de su Secretaría Regional de origen.');
+        }
+
         $datos = $request->validate([
             'consultorio_id' => ['required', 'integer', 'exists:consultorios,id'],
             'abogado_id' => ['nullable', 'integer'],
@@ -93,11 +106,15 @@ class PostulacionesController extends Controller
 
         $r = Postulaciones::asignar($p, $request->user(), (int) $datos['consultorio_id'], $datos['abogado_id'] ?? null, $datos['nota'] ?? null);
 
+        $rutaRedir = $request->user()->rol === 'juridica_central' ? 'secretaria.juridica.postulaciones' : 'secretaria.postulaciones';
+
         if ($r['tipo'] === 'derivada') {
-            return redirect()->route('secretaria.postulaciones')->with('ok', 'Postulación derivada a otra región. Quedó a cargo de su secretaría.');
+            return redirect()->route($rutaRedir)->with('ok', 'Postulación derivada a otra región. Quedó a cargo de su secretaría.');
         }
 
-        $redir = redirect()->route('secretaria.postulaciones')->with('ok', 'Postulación aceptada: el practicante ingresó al consultorio.');
+        $redir = redirect()->route($rutaRedir)
+            ->with('ok', 'Postulación aceptada. Ingrese a la ficha de la práctica para descargar la Carta de Presentación oficial, tramitar su firma física/electrónica y cargarla firmada para oficializar el inicio y notificar al Abogado Jefe.')
+            ->with('practica_creada_id', $r['practica']->id);
 
         return $r['passwordTemporal']
             ? $redir->with('credenciales', ['email' => $p->postulante->email, 'password' => $r['passwordTemporal']])
@@ -107,10 +124,18 @@ class PostulacionesController extends Controller
     public function rechazar(Request $request, int $id)
     {
         $p = $this->postulacion($request, $id);
+
+        // Competencia territorial: Jurídica Central solo puede tramitar admisiones de la Región del Biobío
+        if ($request->user()->rol === 'juridica_central' && $p->region?->codigo !== 'BI') {
+            abort(403, 'La Secretaría Jurídica Central solo puede tramitar admisiones de la Región del Biobío. Las postulaciones de regiones externas son competencia exclusiva de su Secretaría Regional de origen.');
+        }
+
         $datos = $request->validate(['motivo' => ['nullable', 'string', 'max:2000']]);
         Postulaciones::rechazar($p, $request->user(), $datos['motivo'] ?? null);
 
-        return redirect()->route('secretaria.postulaciones')->with('ok', 'Postulación rechazada.');
+        $rutaRedir = $request->user()->rol === 'juridica_central' ? 'secretaria.juridica.postulaciones' : 'secretaria.postulaciones';
+
+        return redirect()->route($rutaRedir)->with('ok', 'Postulación rechazada.');
     }
 
     public function notaCrear(Request $request, int $id)
@@ -134,8 +159,12 @@ class PostulacionesController extends Controller
 
     private function postulacion(Request $request, int $id): Postulacion
     {
-        return Postulacion::with('postulante')
-            ->where('region_id', Scope::regionId($request->user()))
-            ->findOrFail($id);
+        $u = $request->user();
+        $q = Postulacion::with(['postulante', 'region']);
+        if ($u->rol === 'secretaria') {
+            $q->where('region_id', Scope::regionId($u));
+        }
+
+        return $q->findOrFail($id);
     }
 }

@@ -95,8 +95,7 @@
                 <legend>Estudios</legend>
                 <div class="rejilla-campos">
                     <div class="ancho-completo"><x-campo name="universidad" label="Universidad" :value="$p->universidad" :obligatorio="true" /></div>
-                    <x-campo name="anio_carrera" label="Año de carrera" :value="$p->anio_carrera" :opciones="['quinto' => '5° año', 'egresado' => 'Egresado']" :obligatorio="true" />
-                    <x-campo name="especialidad_id" label="Especialidad de interés" :value="$p->especialidad_id" :opciones="$especialidades->pluck('nombre', 'id')" :obligatorio="true" />
+                    <div class="ancho-completo"><x-campo name="especialidad_id" label="Especialidad de interés" :value="$p->especialidad_id" :opciones="$especialidades->pluck('nombre', 'id')" :obligatorio="true" /></div>
                 </div>
             </fieldset>
 

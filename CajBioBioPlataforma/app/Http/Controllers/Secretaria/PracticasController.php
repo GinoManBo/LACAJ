@@ -3,9 +3,15 @@
 namespace App\Http\Controllers\Secretaria;
 
 use App\Http\Controllers\Controller;
+use App\Models\Calificacion;
 use App\Models\Consultorio;
 use App\Models\Practica;
+use App\Services\Almacenamiento;
+use App\Services\Auditoria;
+use App\Services\CartaPresentacionService;
+use App\Services\Notificaciones;
 use App\Services\Practicas;
+use App\Support\Notas;
 use App\Support\Scope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -32,10 +38,20 @@ class PracticasController extends Controller
 
     public function ver(Request $request, int $id)
     {
-        $p = $this->practica($request, $id)->load('practicante.postulante.comuna', 'consultorio.comuna', 'abogado.usuario', 'documentos');
+        $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'por_terminar', 'finalizada', 'cancelada'])
+            ->load('practicante.postulante.comuna', 'consultorio.comuna', 'abogado.usuario', 'documentos', 'calificaciones.registradaPor');
         $this->decorar($p);
 
-        return view('secretaria.practicas.ver', ['practica' => $p, 'motivos' => Practicas::MOTIVOS_CANCELACION]);
+        $calif1 = $p->calificaciones->firstWhere('instancia', 1);
+        $calif2 = $p->calificaciones->firstWhere('instancia', 2);
+
+        return view('secretaria.practicas.ver', [
+            'practica' => $p,
+            'motivos' => Practicas::MOTIVOS_CANCELACION,
+            'calif1' => $calif1,
+            'calif2' => $calif2,
+            'opcionesNotas' => Notas::OPCIONES,
+        ]);
     }
 
     public function estadistica(Request $request, int $id)
@@ -44,6 +60,102 @@ class PracticasController extends Controller
         $this->decorar($p);
 
         return view('secretaria.practicas.estadistica', ['practica' => $p, 'estadistica' => $p->estadistica]);
+    }
+
+    public function descargarCartaPresentacion(Request $request, int $id)
+    {
+        $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial']);
+        $pdf = CartaPresentacionService::generarPdf($p, $request->user());
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="carta-presentacion-practica-'.$p->id.'.pdf"',
+        ]);
+    }
+
+    public function subirCartaPresentacion(Request $request, int $id)
+    {
+        $p = $this->practica($request, $id, ['por_iniciar', 'activa'])->load('practicante.postulante', 'consultorio', 'abogado.usuario');
+
+        $request->validate([
+            'carta_firmada' => ['required', 'file', 'mimes:pdf', 'max:5120'],
+        ], [
+            'carta_firmada.required' => 'Seleccione el archivo PDF con la Carta de Presentación firmada.',
+            'carta_firmada.mimes' => 'El archivo debe ser un documento PDF.',
+            'carta_firmada.max' => 'El archivo no puede pesar más de 5 MB.',
+        ]);
+
+        $guardado = Almacenamiento::guardar($request->file('carta_firmada'));
+
+        $p->update([
+            'carta_presentacion_firmada' => $guardado['nombre_almacenado'],
+            'carta_presentacion_subida_at' => now(),
+            'estado' => 'activa', // Inicio manual oficial
+        ]);
+
+        Auditoria::registrar('practica.carta_presentacion_firmada', 'practica', $p->id, [
+            'archivo' => $guardado['nombre_original'],
+        ], $request->user()->id);
+
+        if ($p->abogado?->usuario_id) {
+            Notificaciones::crear(
+                $p->abogado->usuario_id,
+                'aviso',
+                'Nuevo practicante incorporado: Inicio oficial',
+                "La Secretaría Regional ha cargado la Carta de Presentación firmada. El postulante {$p->practicante->postulante->nombre_completo} ha iniciado oficialmente su práctica en su consultorio.",
+                'practica',
+                $p->id
+            );
+        }
+
+        return back()->with('ok', 'Carta de Presentación firmada registrada exitosamente. Se ha activado el inicio oficial y notificado al Abogado Jefe. Recuerde remitir formalmente este documento al Abogado Jefe.');
+    }
+
+    public function verCartaPresentacionFirmada(Request $request, int $id)
+    {
+        $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial']);
+
+        if (! $p->carta_presentacion_firmada || ! Almacenamiento::existe($p->carta_presentacion_firmada)) {
+            abort(404, 'No se ha encontrado la carta de presentación firmada.');
+        }
+
+        return response()->file(Almacenamiento::ruta($p->carta_presentacion_firmada), [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
+    public function calificarSegundaInstancia(Request $request, int $id)
+    {
+        $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio'])->load('practicante.postulante');
+
+        $datos = $request->validate([
+            'concepto' => ['required', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))],
+            'observaciones' => ['required', 'string', 'min:10', 'max:3000'],
+        ], [
+            'concepto.required' => 'Seleccione una calificación en palabras para segunda instancia.',
+            'concepto.in' => 'Seleccione una opción válida de calificación.',
+            'observaciones.required' => 'Debe ingresar las observaciones de los alegatos en la Corte de Apelaciones.',
+            'observaciones.min' => 'Las observaciones deben contener al menos 10 caracteres.',
+        ]);
+
+        $opcion = Notas::OPCIONES[$datos['concepto']];
+
+        Calificacion::updateOrCreate(
+            ['practica_id' => $p->id, 'instancia' => 2],
+            [
+                'nota' => $opcion['valor'],
+                'fecha' => now()->toDateString(),
+                'registrada_por' => $request->user()->id,
+                'observaciones' => 'Carga asistida 2ª Instancia (Corte de Apelaciones - '.$opcion['nombre'].'): '.$datos['observaciones'],
+            ]
+        );
+
+        Auditoria::registrar('practica.segunda_instancia_asistida', 'practica', $p->id, [
+            'concepto' => $opcion['nombre'],
+            'registrada_por' => $request->user()->id,
+        ], $request->user()->id);
+
+        return back()->with('ok', 'Calificación de Segunda Instancia (Corte de Apelaciones) registrada en concepto «'.$opcion['nombre'].'».');
     }
 
     public function exportar(Request $request)
@@ -111,8 +223,13 @@ class PracticasController extends Controller
 
     private function practica(Request $request, int $id, array $estados = ['por_iniciar', 'activa']): Practica
     {
-        return Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', Scope::regionId($request->user())))
-            ->whereIn('estado', $estados)->findOrFail($id);
+        $u = $request->user();
+        $q = Practica::whereIn('estado', $estados);
+        if ($u->rol === 'secretaria') {
+            $q->whereHas('consultorio', fn ($c) => $c->where('region_id', Scope::regionId($u)));
+        }
+
+        return $q->findOrFail($id);
     }
 
     private function decorar(Practica $p): Practica

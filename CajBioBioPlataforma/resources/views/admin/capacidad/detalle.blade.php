@@ -12,7 +12,10 @@
         <h1 class="titulo-pagina">{{ $sede->nombre }}</h1>
         <p class="texto-suave" style="margin:.25rem 0 0">{{ $sede->region->nombre }}@if ($sede->comuna) · {{ $sede->comuna->nombre }}@endif</p>
     </div>
-    <x-badge :estado="$disp" />
+    <div style="display:flex;gap:0.75rem;align-items:center">
+        <x-badge :estado="$disp" />
+        <x-boton tipo="primario" tam="sm" :href="route('admin.consultorios.editar', $sede)">Editar Datos de Sede</x-boton>
+    </div>
 </div>
 
 <div class="rejilla-ficha">
@@ -33,7 +36,7 @@
             <span class="barra-relleno barra-{{ $disp }}" style="--ancho: {{ $pct }}%"></span>
         </div>
         <div class="sede-numeros"><span><strong>{{ $ocupados }}</strong> ocupados</span><span><strong>{{ $libres }}</strong> libres</span></div>
-        @if ($libres === 0)<p class="dato-menor texto-suave" style="margin:.75rem 0 0">No se pueden retirar más cupos: la capacidad ya iguala a los practicantes asignados. Traslada a alguien primero.</p>@endif
+        @if ($libres === 0)<p class="dato-menor texto-suave" style="margin:.75rem 0 0">No se pueden retirar más cupos: la capacidad ya iguala a los postulantes asignados. Traslada a alguien primero.</p>@endif
         <form method="POST" action="{{ route('admin.capacidad.ajustar', $sede) }}" class="fijar" novalidate>
             @csrf
             <label for="cap-directa" class="campo-etiqueta">Fijar capacidad exacta</label>
@@ -44,9 +47,9 @@
         </form>
     </x-tarjeta>
 
-    <x-tarjeta titulo="Practicantes asignados ({{ $asignados->count() }})" sinPadding>
+    <x-tarjeta titulo="Postulantes asignados ({{ $asignados->count() }})" sinPadding>
         @if ($asignados->isEmpty())
-            <div style="padding:1.25rem"><x-estado-vacio titulo="Sin practicantes asignados" texto="Todos los cupos están libres." /></div>
+            <div style="padding:1.25rem"><x-estado-vacio titulo="Sin postulantes asignados" texto="Todos los cupos están libres." /></div>
         @else
             <ul class="lista-filas">
                 @foreach ($asignados as $p)

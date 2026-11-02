@@ -39,11 +39,11 @@
 
     <form method="POST" action="{{ route('gobernador.autorizar.seleccion') }}" id="form-seleccion" novalidate>
         @csrf
-        <x-tabla :columnas="['', 'Practicante', 'Sede', 'Abogado tutor', 'Evaluación', 'Fecha', '']" descripcion="Prácticas pendientes, de la más antigua a la más reciente" class="tabla-cola">
+        <x-tabla :columnas="['', 'Postulante', 'Sede', 'Abogado tutor', 'Evaluación', 'Fecha', '']" descripcion="Prácticas pendientes, de la más antigua a la más reciente" class="tabla-cola">
             <x-slot:cabecera>
                 <tr>
                     <th scope="col" class="col-check"><label class="check-solo"><input type="checkbox" id="sel-todo" aria-label="Seleccionar todas las prácticas"></label></th>
-                    <th scope="col">Practicante</th><th scope="col">Sede</th><th scope="col">Abogado tutor</th><th scope="col">Evaluación</th><th scope="col">Fecha</th><th scope="col"><span class="sr-only">Acción</span></th>
+                    <th scope="col">Postulante</th><th scope="col">Sede</th><th scope="col">Abogado tutor</th><th scope="col">Evaluación</th><th scope="col">Fecha</th><th scope="col"><span class="sr-only">Acción</span></th>
                 </tr>
             </x-slot:cabecera>
             @foreach ($pendientes as $p)

@@ -25,7 +25,7 @@
 
 <form method="GET" action="{{ route('secretaria.practicas') }}" class="sec-busqueda" role="search">
     <div class="campo"><label for="q" class="sr-only">Buscar práctica</label>
-        <input id="q" name="q" type="search" value="{{ $q }}" class="campo-control" placeholder="Nombre o apellido del practicante"></div>
+        <input id="q" name="q" type="search" value="{{ $q }}" class="campo-control" placeholder="Nombre o apellido del postulante"></div>
     <x-boton type="submit">@include('secretaria._icono', ['n' => 'buscar']) Buscar</x-boton>
     @if ($q !== '')<x-boton tipo="fantasma" :href="route('secretaria.practicas')">Limpiar</x-boton>@endif
 </form>
@@ -33,7 +33,7 @@
 @if ($practicas->isEmpty())
     <x-estado-vacio titulo="No hay prácticas activas" :texto="$q !== '' ? 'Ninguna coincide con su búsqueda.' : 'Cuando acepte una postulación, la práctica aparecerá aquí.'" />
 @else
-    <x-tabla :columnas="['Practicante', 'Consultorio', 'Abogado tutor', 'Periodo', 'Avance', 'Estado', 'Acciones']" descripcion="Prácticas por iniciar y en curso">
+    <x-tabla :columnas="['Postulante', 'Consultorio', 'Abogado Jefe', 'Periodo', 'Avance', 'Estado / Carta', 'Acciones']" descripcion="Prácticas por iniciar y en curso">
         @foreach ($practicas as $p)
             @php $po = $p->practicante->postulante; $nom = $po->nombre.' '.$po->apellido; $est = $p->estado_visible; @endphp
             <tr data-href="{{ route('secretaria.practicas.ver', $p->id) }}">
@@ -42,7 +42,16 @@
                 <td>{{ $p->abogado?->usuario ? $p->abogado->usuario->nombre.' '.$p->abogado->usuario->apellido : 'Sin asignar' }}</td>
                 <td class="sec-num">{{ $p->fecha_inicio->format('d-m-Y') }}<span class="sec-menor">al {{ $p->fecha_termino->format('d-m-Y') }}</span></td>
                 <td><div class="sec-avance"><div class="sec-barra" role="img" aria-label="Avance {{ $p->estadistica['porcentaje'] }}%"><i style="--p:{{ $p->estadistica['porcentaje'] }}%"></i></div>{{ $p->estadistica['porcentaje'] }}%</div></td>
-                <td><x-badge :estado="$est" :texto="$est === 'por_terminar' ? 'Por terminar' : null" /></td>
+                <td>
+                    <div>
+                        <x-badge :estado="$est" :texto="$est === 'por_terminar' ? 'Por terminar' : null" />
+                    </div>
+                    @if ($p->carta_presentacion_firmada)
+                        <span class="badge" style="background:#f0fdf4;color:#166534;font-size:0.75rem;margin-top:0.25rem;display:inline-block;">Carta firmada</span>
+                    @else
+                        <span class="badge" style="background:#fffbeb;color:#92400e;border:1px solid #fef3c7;font-size:0.75rem;margin-top:0.25rem;display:inline-block;">Carta pendiente</span>
+                    @endif
+                </td>
                 <td>
                     <div class="sec-acciones">
                         <a class="sec-ico-btn" href="{{ route('secretaria.practicas.ver', $p->id) }}" title="Ver detalle" aria-label="Ver detalle de {{ $nom }}">@include('secretaria._icono', ['n' => 'ojo'])</a>

@@ -1,9 +1,9 @@
-@extends('layouts.portal', ['migas' => [['Administración', route('admin.inicio')], ['Practicantes']]])
-@section('titulo', 'Gestión de practicantes')
+@extends('layouts.portal', ['migas' => [['Administración', route('admin.inicio')], ['Postulantes']]])
+@section('titulo', 'Gestión de postulantes')
 @section('contenido')
 @include('admin._nav')
 <div>
-    <h1 class="titulo-pagina">Gestión de practicantes</h1>
+    <h1 class="titulo-pagina">Gestión de postulantes</h1>
     <p class="texto-suave" style="margin:.25rem 0 0">{{ $practicas->total() }} {{ $practicas->total() === 1 ? 'práctica' : 'prácticas' }}{{ $q !== '' ? ' para «'.$q.'»' : ' en todas las regiones' }}.</p>
 </div>
 
@@ -17,11 +17,11 @@
 </form>
 
 @if ($practicas->isEmpty())
-    <x-estado-vacio titulo="No hay practicantes que coincidan" texto="Prueba con otro nombre, universidad o sede.">
+    <x-estado-vacio titulo="No hay postulantes que coincidan" texto="Prueba con otro nombre, universidad o sede.">
         @if ($q !== '')<x-boton tipo="secundario" href="{{ route('admin.practicantes.index') }}">Ver todos</x-boton>@endif
     </x-estado-vacio>
 @else
-    <x-tabla :columnas="['Practicante', 'Universidad', 'Sede', 'Abogado tutor', 'Periodo', 'Estado']" descripcion="Prácticas registradas">
+    <x-tabla :columnas="['Postulante', 'Universidad', 'Sede', 'Abogado tutor', 'Periodo', 'Estado']" descripcion="Prácticas registradas">
         @foreach ($practicas as $p)
             @php $po = $p->practicante->postulante; @endphp
             <tr data-href="{{ route('admin.practicantes.ver', $p) }}">

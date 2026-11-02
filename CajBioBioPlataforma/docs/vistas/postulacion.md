@@ -28,10 +28,10 @@ Contacto de emergencia: `emergencia_nombre*`, `emergencia_vinculo*`, `emergencia
 Botones: Volver (paso 1) / Continuar.
 
 ## `postulacion.paso3` — Antecedentes educativos y archivos
-Variables extra: `$especialidades` (id, nombre), `$archivos` (colección keyBy tipo de `ArchivoStaging`: nombre_original, tamano_bytes; vacía si no hay), `$tiposObligatorios` = [cedula_frontal, cedula_reverso], `$tiposOpcionales` = [alumno_regular, concentracion_notas, certificado_egreso, curriculum].
-Form `enctype="multipart/form-data"`. Campos: `universidad*`, `anio_carrera*` (quinto → «5° año», egresado → «Egresado»), `especialidad_id*`.
+Variables extra: `$especialidades` (id, nombre), `$archivos` (colección keyBy tipo de `ArchivoStaging`: nombre_original, tamano_bytes; vacía si no hay), `$tiposObligatorios` = [cedula_frontal, cedula_reverso, certificado_egreso], `$tiposOpcionales` = [].
+Form `enctype="multipart/form-data"`. Campos: `universidad*`, `especialidad_id*`.
 Cédula: `cedula_frontal*` y `cedula_reverso*` — imagen JPG/PNG ≤ 5 MB; dos botones por lado: «Escanear con cámara» (input `accept="image/*" capture="environment"` o getUserMedia con vista previa y captura a File vía DataTransfer) y «Subir archivo». Vista previa de la imagen elegida. Si ya hay `$archivos['cedula_frontal']` mostrar «Archivo cargado: nombre» y NO exigir de nuevo (no lleva `required` en HTML).
-Documentos universitarios opcionales (PDF/JPG/PNG ≤ `config('caj.max_upload_mb')` MB): los 4 tipos opcionales, etiquetados «(opcional)».
+Certificado de egreso: `certificado_egreso*` — obligatorio (PDF/JPG/PNG ≤ `config('caj.max_upload_mb')` MB). Acredita la condición de egresado/a de Derecho (se eliminó la opción de alumno regular y el selector de año de carrera).
 **No hay validación automática de cédula con IA** (se eliminó del producto).
 
 ## `postulacion.paso4` — Consultorio y fecha

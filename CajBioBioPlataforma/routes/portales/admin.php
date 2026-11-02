@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CapacidadController;
+use App\Http\Controllers\Admin\ConsultoriosController;
 use App\Http\Controllers\Admin\InicioController;
 use App\Http\Controllers\Admin\PracticantesController;
 use App\Http\Controllers\Admin\UsuariosController;
@@ -17,10 +18,29 @@ Route::prefix('admin')->name('admin.')->middleware('rol:administrador')->group(f
         Route::post('/{practica}/cancelar', [PracticantesController::class, 'cancelar'])->whereNumber('practica')->name('cancelar');
     });
 
+    // Alias /admin/postulantes
+    Route::prefix('postulantes')->group(function () {
+        Route::get('/', [PracticantesController::class, 'index']);
+        Route::get('/{practica}', [PracticantesController::class, 'ver'])->whereNumber('practica');
+        Route::put('/{practica}', [PracticantesController::class, 'actualizar'])->whereNumber('practica');
+        Route::post('/{practica}/trasladar', [PracticantesController::class, 'trasladar'])->whereNumber('practica');
+        Route::post('/{practica}/cancelar', [PracticantesController::class, 'cancelar'])->whereNumber('practica');
+    });
+
     Route::prefix('capacidad')->name('capacidad.')->group(function () {
         Route::get('/', [CapacidadController::class, 'index'])->name('index');
         Route::get('/{consultorio}', [CapacidadController::class, 'ver'])->whereNumber('consultorio')->name('ver');
         Route::post('/{consultorio}', [CapacidadController::class, 'ajustar'])->whereNumber('consultorio')->name('ajustar');
+    });
+
+    Route::prefix('consultorios')->name('consultorios.')->group(function () {
+        Route::get('/', [ConsultoriosController::class, 'index'])->name('index');
+        Route::get('/nuevo', [ConsultoriosController::class, 'crear'])->name('crear');
+        Route::post('/', [ConsultoriosController::class, 'guardar'])->name('guardar');
+        Route::get('/{consultorio}', [ConsultoriosController::class, 'ver'])->whereNumber('consultorio')->name('ver');
+        Route::get('/{consultorio}/editar', [ConsultoriosController::class, 'editar'])->whereNumber('consultorio')->name('editar');
+        Route::put('/{consultorio}', [ConsultoriosController::class, 'actualizar'])->whereNumber('consultorio')->name('actualizar');
+        Route::post('/{consultorio}/capacidad', [ConsultoriosController::class, 'ajustarCapacidad'])->whereNumber('consultorio')->name('capacidad');
     });
 
     Route::prefix('usuarios')->name('usuarios.')->group(function () {

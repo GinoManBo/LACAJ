@@ -1,7 +1,7 @@
 <x-modal id="modal-cancelar" titulo="Cancelar práctica">
     <form id="form-cancelar" method="POST" action="{{ $accion ?? '#' }}" class="sec-asignar" data-sin-validar-extra>
         @csrf
-        <div class="alerta alerta-aviso" role="note">@include('secretaria._icono', ['n' => 'alerta'])<div>Va a cancelar la práctica de <strong data-cancelar-nombre>{{ $nombre ?? 'este practicante' }}</strong>. Se libera el cupo y se genera un documento de cancelación.</div></div>
+        <div class="alerta alerta-aviso" role="note">@include('secretaria._icono', ['n' => 'alerta'])<div>Va a cancelar la práctica de <strong data-cancelar-nombre>{{ $nombre ?? 'este postulante' }}</strong>. Se libera el cupo y se genera un documento de cancelación.</div></div>
         <div class="campo {{ $errors->has('motivo') ? 'tiene-error' : '' }}" data-grupo-obligatorio="Seleccione el motivo de cancelación.">
             <fieldset class="sec-motivos">
                 <legend>Motivo de cancelación<span class="campo-obligatorio" aria-hidden="true">*</span></legend>

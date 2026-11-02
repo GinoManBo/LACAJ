@@ -53,7 +53,8 @@ class Postulaciones
             $practicante = Practicante::firstOrCreate(['postulante_id' => $postulante->id]);
 
             if (! $practicante->usuario_id) {
-                $perfil = Usuario::where('rut', $postulante->rut)->where('rol', 'postulante')->first();
+                // Buscamos si ya existe una cuenta de usuario previa con el RUT del postulante (rol 'postulante' o histórico 'practicante')
+                $perfil = Usuario::where('rut', $postulante->rut)->whereIn('rol', ['postulante', 'practicante'])->first();
                 $email = mb_strtolower($postulante->email);
                 $conflicto = Usuario::where(fn ($q) => $q->where('email', $email)->orWhere('rut', $postulante->rut))
                     ->when($perfil, fn ($q) => $q->where('id', '!=', $perfil->id))->exists();
@@ -64,7 +65,18 @@ class Postulaciones
                 $datosUsuario = [
                     'nombre' => $postulante->nombre, 'apellido' => $postulante->apellido,
                     'email' => $email, 'rut' => $postulante->rut,
-                    'rol' => 'practicante', 'password' => $passwordTemporal,
+                    // =========================================================================
+                    // UNIFICACIÓN EXPLÍCITA DE ROLES:
+                    // Se preserva y establece el rol unificado 'postulante'.
+                    // La persona continúa siendo la misma y su rol en la plataforma no muta;
+                    // su avance a la fase de práctica lo define su vinculación en la tabla
+                    // 'practicantes' y 'practicas'.
+                    // En caso de que se esté actualizando un perfil con rol previo 'practicante',
+                    // se unifica de forma explícita:
+                    // UPDATE usuarios SET rol = 'postulante' WHERE id = :id;
+                    // =========================================================================
+                    'rol' => 'postulante',
+                    'password' => $passwordTemporal,
                     'debe_cambiar_password' => true, 'activo' => true, 'creado_por' => $actor->id,
                 ];
                 $usuario = $perfil ? tap($perfil)->update($datosUsuario) : Usuario::create($datosUsuario);
@@ -91,7 +103,7 @@ class Postulaciones
             Auditoria::registrar('postulacion.aceptar', 'postulacion', $p->id, ['consultorio_id' => $consultorio->id, 'practica_id' => $practica->id], $actor->id);
 
             if ($abogado) {
-                Notificaciones::crear($abogado->usuario_id, 'informativo', 'Nuevo practicante asignado',
+                Notificaciones::crear($abogado->usuario_id, 'informativo', 'Nuevo postulante asignado',
                     "{$postulante->nombre} {$postulante->apellido} fue asignado/a a {$consultorio->nombre}.", 'practica', $practica->id);
             }
             if ($practicante->usuario_id) {

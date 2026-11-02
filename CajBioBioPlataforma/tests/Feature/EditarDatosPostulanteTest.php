@@ -48,7 +48,7 @@ class EditarDatosPostulanteTest extends TestCase
             'email' => $p->email, 'telefono' => $p->telefono, 'genero' => $p->genero, 'nacionalidad' => $p->nacionalidad, 'discapacidad' => '0',
             'region_id' => $p->region_id, 'comuna_id' => $p->comuna_id, 'direccion' => $p->direccion,
             'emergencia_nombre' => $p->emergencia_nombre, 'emergencia_vinculo' => $p->emergencia_vinculo, 'emergencia_telefono' => $p->emergencia_telefono,
-            'antecedentes_salud' => $p->antecedentes_salud, 'universidad' => $p->universidad, 'anio_carrera' => $p->anio_carrera, 'especialidad_id' => $p->especialidad_id,
+            'antecedentes_salud' => $p->antecedentes_salud, 'universidad' => $p->universidad, 'especialidad_id' => $p->especialidad_id,
         ];
     }
 

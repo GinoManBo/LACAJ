@@ -9,7 +9,8 @@ final class Scope
 {
     public static function regionId(Usuario $u): ?int
     {
-        if ($u->rol === 'administrador') {
+        // Administrador y Jurídica Central (Biobío Concepción) tienen alcance nacional/central
+        if ($u->rol === 'administrador' || $u->rol === 'juridica_central') {
             return null;
         }
         if ($u->rol === 'secretaria' && $u->region_id) {
@@ -35,7 +36,12 @@ final class Scope
 
     public static function practicanteId(Usuario $u): int
     {
-        $id = $u->rol === 'practicante' ? $u->practicante?->id : null;
+        // =========================================================================
+        // UNIFICACIÓN DE ROLES:
+        // Soporta tanto el rol unificado 'postulante' como el rol histórico 'practicante'.
+        // Obtiene el identificador de la ficha 'practicantes' vinculada al usuario.
+        // =========================================================================
+        $id = in_array($u->rol, ['practicante', 'postulante'], true) ? $u->practicante?->id : null;
         abort_unless($id, 403);
 
         return $id;
