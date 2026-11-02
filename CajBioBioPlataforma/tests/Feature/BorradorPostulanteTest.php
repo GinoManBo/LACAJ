@@ -123,7 +123,7 @@ class BorradorPostulanteTest extends TestCase
 
         $this->assertNotNull($r['passwordTemporal']);
         $this->assertSame(1, Usuario::where('rut', '20000001-3')->count());
-        $this->assertSame('practicante', $perfil->fresh()->rol);
+        $this->assertSame('postulante', $perfil->fresh()->rol);
         $this->assertSame('ana@mail.cl', $perfil->fresh()->email);
         $this->assertSame($perfil->id, $po->practicante->fresh()->usuario_id);
     }

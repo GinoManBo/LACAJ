@@ -56,7 +56,7 @@ trait CreaPracticas
             'universidad' => 'Universidad de Concepción', 'anio_carrera' => 'quinto',
             'emergencia_nombre' => 'Madre', 'emergencia_vinculo' => 'Madre', 'emergencia_telefono' => '+56911113333',
         ]);
-        $usuario = Usuario::create(['nombre' => $post->nombre, 'apellido' => $post->apellido, 'email' => $post->email, 'rol' => 'practicante', 'password' => 'secreto123', 'debe_cambiar_password' => false, 'activo' => true]);
+        $usuario = Usuario::create(['nombre' => $post->nombre, 'apellido' => $post->apellido, 'email' => $post->email, 'rol' => 'postulante', 'password' => 'secreto123', 'debe_cambiar_password' => false, 'activo' => true]);
         $practicante = Practicante::create(['postulante_id' => $post->id, 'usuario_id' => $usuario->id]);
         $postulacion = Postulacion::create([
             'postulante_id' => $post->id, 'estado' => 'aceptada', 'region_id' => $consultorio->region_id,

@@ -53,7 +53,7 @@ trait DatosPracticaB
             'fecha_postulacion' => now(), 'fecha_inicio_solicitada' => now()->toDateString(),
             'consultorio_asignado_id' => $consultorio->id,
         ]);
-        $user = $this->usuario('practicante');
+        $user = $this->usuario('postulante');
         $prac = Practicante::create(['postulante_id' => $pt->id, 'usuario_id' => $user->id]);
 
         return Practica::create([

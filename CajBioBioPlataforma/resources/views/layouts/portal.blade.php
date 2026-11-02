@@ -19,7 +19,9 @@
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
         ],
         'abogado' => [['tutor.inicio', 'Mis postulantes', 'inicio']],
-        'practicante' => [['practicante.inicio', 'Mi práctica', 'inicio']],
+        'practicante', 'postulante' => $u->practicante?->practicas()->exists()
+            ? [['practicante.inicio', 'Mi práctica', 'inicio']]
+            : [['postulante.inicio', 'Mi postulación', 'inicio']],
         'gobernador' => [['gobernador.inicio', 'Resumen regional', 'inicio']],
         default => [],
     };
