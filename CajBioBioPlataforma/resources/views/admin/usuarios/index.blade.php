@@ -1,7 +1,18 @@
 @extends('layouts.portal', ['migas' => [['Administración', route('admin.inicio')], ['Usuarios']]])
 @section('titulo', 'Usuarios')
 @php
-    $etRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría', 'abogado' => 'Abogado tutor', 'gobernador' => 'Gobernador', 'practicante' => 'Postulante', 'postulante' => 'Postulante'];
+    $etRol = [
+        'administrador' => 'Administrador',
+        'secretaria' => 'Secretaría regional',
+        'juridica_central' => 'Jurídica Central',
+        'director_regional' => 'Director/a Regional',
+        'jefe_ucoe' => 'Jefe/a UCOE',
+        'director_general' => 'Director/a General',
+        'abogado' => 'Abogado tutor',
+        'gobernador' => 'Gobernador',
+        'practicante' => 'Postulante',
+        'postulante' => 'Postulante',
+    ];
     $f = $filtros ?? [];
     $url = fn (array $extra) => route('admin.usuarios.index', array_filter(array_merge($f, $extra), fn ($v) => $v !== null && $v !== ''));
     $temporal = session('password_temporal');

@@ -173,8 +173,8 @@ La gestión judicial en los consultorios y tribunales de la jurisdicción requer
    * Al cumplirse los 6 meses reglamentarios (`fecha_termino <= today()`), el cupo del consultorio se libera automáticamente en el cálculo de vacantes de la institución (`Consultorio::ocupados()`), permitiendo recibir nuevos postulantes sin depender del cierre administrativo o burocrático de la evaluación.
    * **Alerta de término (Día 166 / 5,5 meses):** A dos semanas del término legal, el sistema activa alertas visuales para solicitar el informe final y prevenir retrasos.
    * **Subsanación de Informes:** El Abogado Jefe puede formular observaciones formales al informe final cargado por el postulante antes de emitir la calificación, enviando una notificación urgente para su corrección.
-6. **Sistema de Calificación Exclusivamente en Palabras:**
-   * Toda la captura y visualización de notas en la plataforma (tanto para 1ª como para 2ª instancia) se efectúa en conceptos reglamentarios en palabras: `Sobresaliente`, `Muy Buena`, `Buena`, `Regular` y `Deficiente`, suprimiendo la exposición de números decimales a los usuarios.
+6. **Sistema de Calificación Exclusivamente en Palabras (Escala Institucional de 4 Niveles):**
+   * Toda la captura y visualización de notas en la plataforma (tanto para 1ª como para 2ª instancia) se efectúa en conceptos reglamentarios en palabras: `Sobresaliente`, `Buena`, `Regular` y `Mala`, suprimiendo la exposición de números decimales a los usuarios.
 
 ---
 
@@ -271,6 +271,72 @@ Para iniciar la práctica profesional judicial en la Corporación de Asistencia 
 
 ---
 
-## 6. Próximas Refactorizaciones (Pendientes)
+## 6. Arquitectura de Directores y Jefaturas: División de Facultades (Secretaría vs. Directores), Visación Regional (Fase 3), Revisión Colegiada UCOE (Biobío), Suscripción FirmaGob (Director General) y Despacho de Documentos Oficiales
+
+### 6.1 Contexto y Motivación
+Se implementó la estructura de facultades, perfiles y flujos jerárquicos de toma de decisión para las Jefaturas y Directores de la Corporación de Asistencia Judicial del Biobío:
+
+1. **División de Facultades: Secretaría vs. Directores / Jefaturas:**
+   * **Facultad Material y Operativa (Secretaría):** Corresponde a la Secretaría (Regional o Jurídica Central de Biobío), encargada de la operativa material del sistema: descargar borradores, gestionar firmas manuales o estampadas, cargar PDFs autorizados, registrar calificaciones asistidas y realizar la remisión electrónica de los legajos.
+   * **Facultad Jerárquica y Legal de Fondo (Directores / Jefes):** Corresponde a las autoridades ejecutivas (Director Regional, Jefe de UCOE y Director General), quienes ejercen la representación institucional, validan formalmente las notas, auditan las evaluaciones y suscriben con Firma Electrónica Avanzada (FEA - FirmaGob) el cierre de la práctica.
+
+2. **Diferenciación de los Tres Perfiles Directivos:**
+   * **Director Regional (`director_regional` - Regiones Externas: NB, AR, LR, LL, AI):**
+     - **Alcance territorial estricto:** Supervisa exclusivamente su región geográfica (`region_id`).
+     - **Bandeja de Validación de Evaluaciones (Fase 3 Regional):** Examina los expedientes evaluados por los Abogados Jefes de consultorio y Corte de Apelaciones. Cuenta con acceso directo al Informe de Práctica del SAJ en PDF y visualización de las rúbricas y calificaciones en palabras (`Sobresaliente`, `Buena`, `Regular`, `Mala`).
+     - **Potestad de Revisión, Modificación y Visación Directiva:** Posee la facultad legal expresa de ratificar la propuesta del Abogado Jefe o modificar la calificación final antes de remitir el expediente a Concepción. Al modificar la nota, el sistema actualiza la calificación, exige fundamentación obligatoria y deja trazabilidad completa en auditoría. La visación formal directiva (`validada_director_at`) es el requisito indispensable que habilita a la Secretaría Regional a remitir el expediente a Concepción.
+     - **Seguimiento Regional y Exportación:** Monitoreo integral de la dotación y estado de los practicantes en su jurisdicción, con exportación de nóminas a Excel mediante OpenSpout.
+     - **Directorio de Consultorios y Cupos:** Visualización de la capacidad, ocupación y disponibilidad formativa de sus sedes locales.
+   * **Jefe de UCOE (`jefe_ucoe` - Región del Biobío — don Luis Núñez Oviedo):**
+     - Ejerce funcionalmente las atribuciones de Director Regional para la Octava Región (Biobío).
+     - **Identidad Documental de Jefatura:** Los documentos emitidos en su jurisdicción reflejan su cargo oficial: «Jefe de la Unidad de Consultorios y Oficinas Especializadas (UCOE)».
+     - **Submódulo Exclusivo de Revisión Colegiada UCOE:** Facilita la distribución y reasignación equitativa (individual y masiva en lote) de expedientes evaluados entre los 3 revisores designados en la Región del Biobío: don Luis Núñez Oviedo, doña Verónica Cifuentes y doña Graciela Paredes, quienes cuentan con la potestad de examinar, validar o modificar las calificaciones de los expedientes asignados.
+   * **Director General (`director_general` - Sede Central Concepción — don Mauricio Decap Fernández):**
+     - **Alcance Nacional Corporativo:** Supervisa transversalmente las 6 regiones de la Corporación.
+     - **Bandeja Nacional de Firma Final (FirmaGob):** Visualización centralizada de expedientes consolidados y auditados de todo el país.
+     - **Emisión y Descarga Oficial de Documentos:** Descarga individual de Certificados Oficiales para la Corte Suprema y Resoluciones de Aprobación en PDF, así como descarga masiva en archivo ZIP para firma externa por lotes.
+     - **Integración con FirmaGob (FEA) y Gatillador de Cierre:** El Director General sube el Certificado PDF ya firmado con Firma Electrónica Avanzada, registrando el folio y la URL de verificación pública de la firma.
+     - **Efectos Vinculantes del Cierre Definitivo:** Al cargar el certificado suscrito con FirmaGob, el expediente cambia automáticamente al estado final `cerrada_historial`, se autoriza de inmediato la visualización y descarga de los certificados para el postulante en su portal (`documentos_autorizados = true`), y se envían las notificaciones institucionales de término formal de práctica.
+     - **Supervisión Nacional y Exportación Consolidada:** Módulo de monitoreo de prácticas en las 6 regiones con exportación ejecutiva a Excel.
+
+3. **Homologación con Documentos Oficiales Tipo y Escala en Palabras:**
+   * Se ajustaron los generadores de documentos (`CertificadosPractica` y `CartaPresentacionService`) para reflejar dinámicamente las firmas, cargos y autoridades según la región de origen y la sede central, estipulando formalmente el cargo «Jefe de la Unidad de Consultorios y Oficinas Especializadas (UCOE)».
+   * En todas las interfaces directivas, las calificaciones y rúbricas se exhiben exclusivamente en conceptos cualitativos reglamentarios en palabras: `Sobresaliente`, `Buena`, `Regular` y `Mala`.
+
+---
+
+### 6.2 Componentes Afectados y Cambios Realizados
+
+| Archivo | Comportamiento Anterior | Estado Actual |
+| :--- | :--- | :--- |
+| `CajBioBioPlataforma/database/migrations/2026_11_02_000003_agrega_directores_y_firmagob_a_practicas.php` | No existía. | Añade a `practicas` las columnas `validada_director_at`, `validada_director_por`, `observaciones_director`, `revisor_colegiado_id`, `revisor_colegiado_nombre`, `firmado_director_general_at`, `firmado_director_general_por`, `firmagob_folio`, `firmagob_url`, `certificado_firmagob_id` con índices foráneos seguros. |
+| `CajBioBioPlataforma/app/Models/Usuario.php` | No incluía roles directivos específicos. | Añade `director_regional`, `jefe_ucoe`, `director_general` a `ROLES` y `ROLES_GESTIONABLES`; define redirecciones de `portalInicio()` a `director.inicio` y `director_general.inicio`. |
+| `CajBioBioPlataforma/app/Models/Practica.php` | Sin atributos directivos de visación ni firma digital. | Añade casts datetime y relaciones `validadaDirectorPor`, `revisorColegiado`, `firmadoDirectorGeneralPor` y `certificadoFirmagob`. |
+| `CajBioBioPlataforma/app/Support/Scope.php` | No definía alcance para directores. | Fija alcance nacional (`null`) para `director_general` y alcance territorial regional para `director_regional` y `jefe_ucoe`. |
+| `CajBioBioPlataforma/app/Http/Controllers/DocumentoController.php` | Permisos de visualización sin contemplar directores. | Permite descarga y visualización de documentos oficiales para `director_general`, `director_regional` y `jefe_ucoe`. |
+| `CajBioBioPlataforma/app/Support/Notas.php` | Escala previa de 5 niveles numéricos/conceptuales. | Actualiza escala institucional a 4 conceptos en palabras: `Sobresaliente` (≥6.0), `Buena` (≥5.0), `Regular` (≥4.0) y `Mala` (<4.0). |
+| `CajBioBioPlataforma/app/Http/Controllers/Director/DirectorRegionalController.php` | No existía. | Controlador directivo regional para revisión, validación y modificación de notas, seguimiento con Excel, capacidad de consultorios y distribución colegiada UCOE. |
+| `CajBioBioPlataforma/app/Http/Controllers/Director/DirectorGeneralController.php` | No existía. | Controlador de Dirección General para bandeja nacional FirmaGob, descarga individual y en ZIP de certificados, registro de FEA y gatillador de cierre a `cerrada_historial`, supervisión nacional y catálogo de sedes. |
+| `CajBioBioPlataforma/routes/portales/director.php` | No existía. | Rutas para el portal de Dirección Regional y Jefatura de UCOE (`director.*`). |
+| `CajBioBioPlataforma/routes/portales/director_general.php` | No existía. | Rutas para el portal de Dirección General (`director_general.*`). |
+| `CajBioBioPlataforma/routes/web.php` | No cargaba portales directivos. | Registra las rutas de `director.php` y `director_general.php`. |
+| `CajBioBioPlataforma/resources/views/layouts/portal.blade.php` | Sin menús para directores. | Configura sidebar, títulos, badges y navegación exclusiva para `director_regional`, `jefe_ucoe` y `director_general`. |
+| `CajBioBioPlataforma/resources/views/director/inicio.blade.php` | No existía. | Bandeja regional de validación con métricas, filtros, selección y visación masiva en lote, y calificaciones en palabras. |
+| `CajBioBioPlataforma/resources/views/director/ver.blade.php` | No existía. | Ficha evaluativa con visor/enlace al Informe SAJ en PDF, rúbricas de 1ª y 2ª instancia, panel interactivo para validar o modificar la calificación final en la escala de 4 palabras (Sobresaliente, Buena, Regular, Mala), fundamentación obligatoria y trazabilidad. |
+| `CajBioBioPlataforma/resources/views/director/seguimiento.blade.php` | No existía. | Grilla de seguimiento de prácticas regionales con filtros avanzados y botón de descarga en Excel. |
+| `CajBioBioPlataforma/resources/views/director/consultorios.blade.php` | No existía. | Directorio regional de consultorios con indicadores de dotación, capacidad y disponibilidad de vacantes. |
+| `CajBioBioPlataforma/resources/views/director/colegiada.blade.php` | No existía. | Panel exclusivo UCOE Biobío para distribución y reasignación de expedientes entre don Luis Núñez, doña Verónica Cifuentes y doña Graciela Paredes. |
+| `CajBioBioPlataforma/resources/views/director_general/index.blade.php` | No existía. | Bandeja nacional de firma FirmaGob con indicadores, filtros por región, descarga de certificados en ZIP y enlaces de suscripción. |
+| `CajBioBioPlataforma/resources/views/director_general/ver.blade.php` | No existía. | Ficha nacional con rúbrica, descarga de documentos oficiales y formulario de subida de FirmaGob con gatillador de cierre y autorización de certificados. |
+| `CajBioBioPlataforma/resources/views/director_general/seguimiento.blade.php` | No existía. | Panel de supervisión de prácticas en las 6 regiones con exportación consolidada a Excel. |
+| `CajBioBioPlataforma/resources/views/director_general/consultorios.blade.php` | No existía. | Catálogo nacional de las 192 sedes con métricas corporativas de ocupación y cupos. |
+| `CajBioBioPlataforma/app/Services/CartaPresentacionService.php` | Generaba emisor estático. | Asigna dinámicamente como firmante a la Jefatura de UCOE («Jefe de la Unidad de Consultorios y Oficinas Especializadas (UCOE)») en Biobío y al Director Regional en las regiones externas. |
+| `CajBioBioPlataforma/app/Services/CertificadosPractica.php` | Resolvía firmas estáticas. | Resuelve cargos y nombres reales del Director General y directores regionales; respeta el desbloqueo por `documentos_autorizados`. |
+| `CajBioBioPlataforma/app/Http/Controllers/Secretaria/HistorialController.php` & `ver.blade.php` | Permitía remisión sin visación previa. | Bloquea el botón de remisión a Jurídica Central hasta que el expediente cuente con visación formal directiva (`validada_director_at`). |
+| `CajBioBioPlataforma/database/seeders/UsuariosDemoSeeder.php` | Sin usuarios directivos. | Incorpora cuentas demo para Director General (`director_general@cajbiobio.cl`), Jefe de UCOE (`ucoe_biobio@cajbiobio.cl`), revisores colegiados y los 5 Directores Regionales externos. |
+
+---
+
+## 7. Próximas Refactorizaciones (Pendientes)
 
 *(Espacio reservado para documentar las siguientes fases de refactorización según se vayan abordando).*

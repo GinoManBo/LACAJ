@@ -67,7 +67,8 @@ class HistorialController extends Controller
             'documentosCedula' => $docs->whereIn('tipo', ['cedula_frontal', 'cedula_reverso'])->values(),
             'documentosUniversitarios' => $docs->whereNotIn('tipo', ['cedula_frontal', 'cedula_reverso'])->values(),
             'esSoloLectura' => in_array($p->estado, ['remitida_biobio', 'nivelada_biobio', 'rechazada_sancion', 'cerrada_historial'], true),
-            'puedeRemitir' => $p->estado === 'finalizada' && $p->evaluacion !== null,
+            'puedeRemitir' => $p->estado === 'finalizada' && $p->evaluacion !== null && $p->validada_director_at !== null,
+            'faltaVisacionDirector' => $p->estado === 'finalizada' && $p->evaluacion !== null && $p->validada_director_at === null,
         ]);
     }
 
@@ -83,6 +84,10 @@ class HistorialController extends Controller
 
         if (! $p->evaluacion) {
             return back()->withErrors(['remitir' => 'No se puede remitir el expediente: la práctica aún no cuenta con evaluación del abogado tutor.']);
+        }
+
+        if (! $p->validada_director_at) {
+            return back()->withErrors(['remitir' => 'No se puede remitir el expediente: la propuesta de evaluación aún no ha sido visada ni autorizada por la Dirección Regional / Jefatura de UCOE.']);
         }
 
         if (in_array($p->estado, ['remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true)) {

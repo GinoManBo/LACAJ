@@ -1,6 +1,17 @@
 @php
     $editando = $usuario->exists;
-    $etRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'abogado' => 'Abogado tutor', 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
+    $etRol = [
+        'administrador' => 'Administrador',
+        'secretaria' => 'Secretaría regional',
+        'juridica_central' => 'Jurídica Central Biobío',
+        'director_regional' => 'Director/a Regional',
+        'jefe_ucoe' => 'Jefe/a de UCOE Biobío',
+        'director_general' => 'Director/a General',
+        'abogado' => 'Abogado tutor',
+        'practicante' => 'Postulante',
+        'postulante' => 'Postulante',
+        'gobernador' => 'Gobernador regional',
+    ];
     $etArea = ['civil' => 'Civil', 'penal' => 'Penal', 'laboral' => 'Laboral', 'familia' => 'Familia'];
     $rolActual = old('rol', $usuario->rol ?: 'secretaria');
     $propio = $editando && $usuario->id === Auth::id();

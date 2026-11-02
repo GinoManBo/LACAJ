@@ -22,8 +22,8 @@ class Usuario extends Authenticatable
         'firma_actualizada_at' => 'datetime',
     ];
 
-    public const ROLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'postulante', 'gobernador', 'practicante'];
-    public const ROLES_GESTIONABLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'gobernador'];
+    public const ROLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'director_regional', 'jefe_ucoe', 'director_general', 'postulante', 'gobernador', 'practicante'];
+    public const ROLES_GESTIONABLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'director_regional', 'jefe_ucoe', 'director_general', 'gobernador'];
 
     public function region() { return $this->belongsTo(Region::class); }
     public function abogado() { return $this->hasOne(Abogado::class, 'usuario_id'); }
@@ -39,6 +39,8 @@ class Usuario extends Authenticatable
             'secretaria' => route('secretaria.panel'),
             'juridica_central' => route('secretaria.juridica.index'),
             'abogado' => route('tutor.inicio'),
+            'director_regional', 'jefe_ucoe' => route('director.inicio'),
+            'director_general' => route('director_general.inicio'),
             'practicante' => route('practicante.inicio'),
             'gobernador' => route('gobernador.inicio'),
             'postulante' => $this->portalInicioPostulante(),

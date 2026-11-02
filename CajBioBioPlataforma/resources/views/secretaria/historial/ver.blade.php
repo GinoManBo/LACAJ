@@ -20,6 +20,10 @@
                     Cerrar Competencia Regional y Remitir a Jurídica Biobío
                 </x-boton>
             </form>
+        @elseif (! empty($faltaVisacionDirector))
+            <span class="sec-tag sec-tag-pendiente" style="padding:.5rem .75rem;font-size:.85rem;">
+                Pendiente de Visación por Dirección Regional / Jefatura UCOE
+            </span>
         @endif
         <x-boton tipo="secundario" :href="route('secretaria.historial')">@include('secretaria._icono', ['n' => 'volver']) Volver al historial</x-boton>
     </div>

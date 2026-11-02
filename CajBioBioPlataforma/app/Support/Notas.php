@@ -19,18 +19,13 @@ final class Notas
 
     /**
      * Opciones institucionales de calificación en palabras.
-     * En la plataforma la calificación se gestiona y presenta en palabras,
-     * asociando un ancla decimal interna para compatibilidad de base de datos.
+     * En la plataforma la calificación se gestiona y presenta en palabras:
+     * Sobresaliente, Buena, Regular y Mala.
      */
     public const OPCIONES = [
         'SOBRESALIENTE' => [
             'nombre' => 'Sobresaliente',
             'valor' => 7.0,
-            'aprobatorio' => true,
-        ],
-        'MUY_BUENA' => [
-            'nombre' => 'Muy Buena',
-            'valor' => 6.0,
             'aprobatorio' => true,
         ],
         'BUENA' => [
@@ -43,8 +38,8 @@ final class Notas
             'valor' => 4.0,
             'aprobatorio' => true,
         ],
-        'DEFICIENTE' => [
-            'nombre' => 'Deficiente',
+        'MALA' => [
+            'nombre' => 'Mala',
             'valor' => 3.0,
             'aprobatorio' => false,
         ],
@@ -52,21 +47,22 @@ final class Notas
 
     public const CONCEPTOS = [
         'SOBRESALIENTE' => 'Sobresaliente',
-        'MUY_BUENA' => 'Muy Buena',
-        'MUY BUENO' => 'Muy Buena',
         'BUENA' => 'Buena',
         'REGULAR' => 'Regular',
-        'DEFICIENTE' => 'Deficiente',
+        'MALA' => 'Mala',
+        // Alias de compatibilidad histórica
+        'MUY_BUENA' => 'Sobresaliente',
+        'MUY BUENO' => 'Sobresaliente',
+        'DEFICIENTE' => 'Mala',
     ];
 
     /**
      * Expresa la calificación en el concepto reglamentario de la institución (solo palabras).
      * Escala institucional:
-     * - Sobresaliente (>= 6.5)
-     * - Muy Buena (5.5 a 6.4)
-     * - Buena (4.5 a 5.4, o nivelada de oficio)
-     * - Regular (4.0 a 4.4, aprobatorio sujeto a revisión)
-     * - Deficiente (< 4.0, reprobatorio)
+     * - Sobresaliente (>= 6.0)
+     * - Buena (5.0 a 5.9)
+     * - Regular (4.0 a 4.9)
+     * - Mala (< 4.0, reprobatoria)
      */
     public static function concepto(float|int|string|null $nota): string
     {
@@ -76,11 +72,10 @@ final class Notas
         $val = (float) $nota;
 
         return match (true) {
-            $val >= 6.5 => 'Sobresaliente',
-            $val >= 5.5 => 'Muy Buena',
-            $val >= 4.5 => 'Buena',
+            $val >= 6.0 => 'Sobresaliente',
+            $val >= 5.0 => 'Buena',
             $val >= 4.0 => 'Regular',
-            default => 'Deficiente',
+            default => 'Mala',
         };
     }
 
@@ -95,11 +90,10 @@ final class Notas
         $val = (float) $nota;
 
         return match (true) {
-            $val >= 6.5 => 'SOBRESALIENTE',
-            $val >= 5.5 => 'MUY_BUENA',
-            $val >= 4.5 => 'BUENA',
+            $val >= 6.0 => 'SOBRESALIENTE',
+            $val >= 5.0 => 'BUENA',
             $val >= 4.0 => 'REGULAR',
-            default => 'DEFICIENTE',
+            default => 'MALA',
         };
     }
 
@@ -114,6 +108,12 @@ final class Notas
         $c = strtoupper(str_replace(' ', '_', trim((string) $concepto)));
         if (isset(self::OPCIONES[$c])) {
             return (float) self::OPCIONES[$c]['valor'];
+        }
+        if ($c === 'MUY_BUENA' || $c === 'MUY_BUENO') {
+            return 7.0;
+        }
+        if ($c === 'DEFICIENTE') {
+            return 3.0;
         }
 
         return 5.0;

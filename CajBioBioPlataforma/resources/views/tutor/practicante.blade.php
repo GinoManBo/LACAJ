@@ -241,7 +241,7 @@
                         @foreach ($criterios as $clave => $etiqueta)
                             <li class="tp-criterio">
                                 <span>{{ $etiqueta }}</span>
-                                <input class="campo-control" disabled placeholder="Sobresaliente, Muy Buena..." tabindex="-1">
+                                <input class="campo-control" disabled placeholder="Sobresaliente, Buena, Regular..." tabindex="-1">
                             </li>
                         @endforeach
                     </ul>
@@ -299,18 +299,16 @@
 
                     const escala = {
                         'SOBRESALIENTE': { valor: 7.0, nombre: 'Sobresaliente' },
-                        'MUY_BUENA': { valor: 6.0, nombre: 'Muy Buena' },
                         'BUENA': { valor: 5.0, nombre: 'Buena' },
                         'REGULAR': { valor: 4.0, nombre: 'Regular' },
-                        'DEFICIENTE': { valor: 3.0, nombre: 'Deficiente' }
+                        'MALA': { valor: 3.0, nombre: 'Mala' }
                     };
 
                     function conceptoTexto(prom) {
-                        if (prom >= 6.5) return 'Sobresaliente';
-                        if (prom >= 5.5) return 'Muy Buena';
-                        if (prom >= 4.5) return 'Buena';
+                        if (prom >= 6.0) return 'Sobresaliente';
+                        if (prom >= 5.0) return 'Buena';
                         if (prom >= 4.0) return 'Regular';
-                        return 'Deficiente';
+                        return 'Mala';
                     }
 
                     function actualizar() {

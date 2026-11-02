@@ -42,8 +42,8 @@ class DocumentoController extends Controller
         $regionDoc = $d->postulacion?->region_id ?? $practica?->consultorio?->region_id;
 
         return match ($u->rol) {
-            'administrador' => true,
-            'secretaria' => $u->region_id !== null && $regionDoc === $u->region_id,
+            'administrador', 'director_general', 'juridica_central' => true,
+            'secretaria', 'director_regional', 'jefe_ucoe' => $u->region_id !== null && $regionDoc === $u->region_id,
             'abogado' => $u->abogado && $practica && $practica->abogado_id === $u->abogado->id,
             'practicante', 'postulante' => $this->esDelPracticanteOPostulante($u, $d, $practica),
             default => false,
