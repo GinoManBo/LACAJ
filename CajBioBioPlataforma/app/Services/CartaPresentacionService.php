@@ -40,20 +40,24 @@ class CartaPresentacionService
 
         $esBiobio = $consultorio->region?->codigo === 'BI';
         if ($esBiobio) {
-            $ucoe = Usuario::where('rol', 'jefe_ucoe')->where('activo', true)->first();
-            $emisorNombre = $emisor
-                ? $emisor->nombre.' '.$emisor->apellido
-                : ($ucoe ? $ucoe->nombre.' '.$ucoe->apellido : ($inst['director_nombre'] ?? 'LUIS NÚÑEZ OVIEDO'));
+            $autoridad = ($emisor && $emisor->rol === 'jefe_ucoe')
+                ? $emisor
+                : Usuario::where('rol', 'jefe_ucoe')->where('activo', true)->first();
+            $emisorNombre = $autoridad
+                ? $autoridad->nombre_completo
+                : ($inst['director_nombre'] ?? 'LUIS NÚÑEZ OVIEDO');
             $emisorCargo = 'JEFE DE LA UNIDAD DE CONSULTORIOS Y OFICINAS ESPECIALIZADAS (UCOE)';
         } else {
-            $directorReg = Usuario::where('rol', 'director_regional')
-                ->where('region_id', $consultorio->region_id)
-                ->where('activo', true)
-                ->first();
+            $autoridad = ($emisor && $emisor->rol === 'director_regional' && $emisor->region_id === $consultorio->region_id)
+                ? $emisor
+                : Usuario::where('rol', 'director_regional')
+                    ->where('region_id', $consultorio->region_id)
+                    ->where('activo', true)
+                    ->first();
             $nomRegion = $consultorio->region?->nombre ?? 'REGIONAL';
-            $emisorNombre = $emisor
-                ? $emisor->nombre.' '.$emisor->apellido
-                : ($directorReg ? $directorReg->nombre.' '.$directorReg->apellido : 'DIRECTOR REGIONAL');
+            $emisorNombre = $autoridad
+                ? $autoridad->nombre_completo
+                : 'DIRECTOR REGIONAL';
             $emisorCargo = 'DIRECTOR REGIONAL DE '.mb_strtoupper($nomRegion);
         }
 

@@ -44,13 +44,8 @@ class Consultorio extends Model
         // para recibir un nuevo postulante, sin esperar el cierre burocrático.
         // =========================================================================
         return $this->practicas()
-            ->where(function ($q) {
-                $q->where('estado', 'por_iniciar')
-                    ->orWhere(function ($q2) {
-                        $q2->where('estado', 'activa')
-                            ->where('fecha_termino', '>', today());
-                    });
-            })
+            ->whereIn('estado', ['por_iniciar', 'activa'])
+            ->where('fecha_termino', '>', today())
             ->count();
     }
 

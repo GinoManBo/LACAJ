@@ -49,12 +49,12 @@ class UsuariosDemoSeeder extends Seeder
             ['Pamela', 'Fuentes Almonacid', 'secretaria_aysen@cajbiobio.cl', '10000015-6', 'secretaria', $regiones['AI'] ?? null, null],
 
             // Abogados Jefes de 1ª Instancia (Consultorios)
-            ['Carlos', 'Muñoz Sepúlveda', 'abogado1@cajbiobio.cl', '10000004-0', 'abogado', null, 'civil', false],
-            ['Andrea', 'Rojas Fuentes', 'abogado2@cajbiobio.cl', '10000005-9', 'abogado', null, 'penal', false],
+            ['Carlos', 'Muñoz Sepúlveda', 'abogado1@cajbiobio.cl', '10000004-0', 'abogado', null, null, false],
+            ['Andrea', 'Rojas Fuentes', 'abogado2@cajbiobio.cl', '10000005-9', 'abogado', null, null, false],
 
             // Abogado Jefe de 2ª Instancia (Corte de Apelaciones Concepción - Región del Biobío)
             // Estructura flexible: cada región puede contar con uno o más abogados jefes de 2ª instancia
-            ['Mauricio', 'Vergara Toledo', 'corte_biobio@cajbiobio.cl', '10000016-4', 'abogado', $regiones['BI'] ?? null, 'corte', true],
+            ['Mauricio', 'Vergara Toledo', 'corte_biobio@cajbiobio.cl', '10000016-4', 'abogado', $regiones['BI'] ?? null, null, true],
 
             // Gobernador Regional
             ['Rodrigo', 'Díaz Wörner', 'gobernador@cajbiobio.cl', '10000006-7', 'gobernador', null, null, false],
@@ -87,9 +87,9 @@ class UsuariosDemoSeeder extends Seeder
                 'debe_cambiar_password' => false, 'activo' => true,
                 'intentos_fallidos' => 0, 'bloqueado_hasta' => null,
             ]);
-            if ($area) {
+            if ($rol === 'abogado') {
                 Abogado::updateOrCreate(['usuario_id' => $u->id], [
-                    'area' => $area,
+                    'area' => null,
                     'es_segunda_instancia' => (bool) $esSegundaInstancia,
                     'region_id' => $esSegundaInstancia ? $regionId : null,
                 ]);

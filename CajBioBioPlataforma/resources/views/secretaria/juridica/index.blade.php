@@ -4,7 +4,7 @@
 <div class="sec-cabecera">
     <div>
         <h1 class="titulo-pagina">Recepción Nacional de Expedientes</h1>
-        <p class="texto-suave">Etapa posterior a la práctica · Secretaría Jurídica Central (Biobío - Concepción). Nivelación de notas de oficio a Buena (5.0), causal disciplinaria y despacho final de certificados.</p>
+        <p class="texto-suave">Etapa posterior a la práctica · Secretaría Jurídica Central (Biobío - Concepción). Nivelación de notas, causal disciplinaria y despacho final de certificados.</p>
     </div>
     <div>
         <x-boton tipo="secundario" :href="route('secretaria.juridica.exportar', request()->query())">

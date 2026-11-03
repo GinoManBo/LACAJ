@@ -20,9 +20,9 @@
         </p>
     </div>
     <div class="sec-acciones">
-        @if ($esCerrada)
+        @if ($practica->firmado_director_general_at)
             <span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700; padding:0.5rem 0.75rem; border-radius:6px; font-size:0.875rem;">
-                Expediente Cerrado e Historiado
+                {{ $esCerrada ? 'Expediente Cerrado e Historiado' : 'Suscrito con FirmaGob (Pendiente Despacho Jurídica Central)' }}
             </span>
         @else
             <span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:700; padding:0.5rem 0.75rem; border-radius:6px; font-size:0.875rem;">
@@ -136,10 +136,10 @@
     @endif
 </div>
 
-<!-- Integración FirmaGob: Suscripción y Despacho Final -->
-<div class="tarjeta" style="padding: 1.5rem; border: 2px solid {{ $esCerrada ? '#86efac' : '#3b82f6' }};">
+<!-- Integración FirmaGob: Suscripción FEA previa a Despacho Final -->
+<div class="tarjeta" style="padding: 1.5rem; border: 2px solid {{ ($esCerrada || $practica->firmado_director_general_at) ? '#86efac' : '#3b82f6' }};">
     <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
-        <div style="background:{{ $esCerrada ? '#dcfce7' : '#dbeafe' }}; color:{{ $esCerrada ? '#15803d' : '#1d4ed8' }}; padding:0.6rem; border-radius:8px;">
+        <div style="background:{{ ($esCerrada || $practica->firmado_director_general_at) ? '#dcfce7' : '#dbeafe' }}; color:{{ ($esCerrada || $practica->firmado_director_general_at) ? '#15803d' : '#1d4ed8' }}; padding:0.6rem; border-radius:8px;">
             <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
         <div>
@@ -147,13 +147,13 @@
                 Suscripción con FirmaGob (Firma Electrónica Avanzada)
             </h3>
             <p style="font-size:0.85rem; color:#64748b; margin:0;">
-                Gatillador vinculante de Cierre Definitivo de Práctica y despacho oficial de antecedentes para la Corte Suprema.
+                Firma electrónica del Certificado Oficial para la Corte Suprema previa a la autorización y despacho final de la Secretaría Jurídica Central.
             </p>
         </div>
     </div>
 
     @if ($puedeFirmarCierre && ! $esCerrada)
-        <form method="POST" action="{{ route('director_general.firmagob', $practica->id) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirma la carga del Certificado firmado con FirmaGob? Esta acción cerrará definitivamente el expediente, habilitará los documentos para el postulante y enviará la notificación formal.');">
+        <form method="POST" action="{{ route('director_general.firmagob', $practica->id) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirma la carga del Certificado firmado con FirmaGob? El expediente quedará disponible para que la Secretaría Jurídica Central realice la autorización y despacho final al postulante.');">
             @csrf
             <div class="sec-dos" style="margin-bottom: 1rem;">
                 <div>
@@ -181,17 +181,17 @@
             </div>
 
             <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:0.75rem 1rem; margin-bottom:1.25rem;">
-                <div style="font-weight:600; color:#1e40af; font-size:0.85rem; margin-bottom:0.25rem;">Efectos reglamentarios del registro:</div>
+                <div style="font-weight:600; color:#1e40af; font-size:0.85rem; margin-bottom:0.25rem;">Efectos institucionales del registro:</div>
                 <ul style="font-size:0.85rem; color:#1e3a8a; margin:0; padding-left:1.25rem;">
-                    <li>El estado del expediente pasa a <strong>CerradaHistorial</strong> de forma definitiva e inalterable.</li>
-                    <li>Se autoriza automáticamente la descarga de los certificados para el egresado en su portal.</li>
-                    <li>Se emite la notificación formal de término de práctica para el inicio del expediente de título.</li>
+                    <li>Queda registrado el Certificado Oficial para la Corte Suprema suscrito con FEA por el Director General.</li>
+                    <li>Se notifica formalmente a la Secretaría Jurídica Central de Biobío para su revisión y despacho definitivo.</li>
+                    <li>La Secretaría Jurídica Central autorizará y despachará los antecedentes al portal del postulante.</li>
                 </ul>
             </div>
 
             <div style="display:flex; justify-content:flex-end;">
                 <x-boton type="submit" tipo="primario" style="background:#1e40af; padding:0.6rem 1.25rem;">
-                    Registrar Certificado FirmaGob y Despachar Cierre Definitivo
+                    Registrar Certificado suscrito con FirmaGob
                 </x-boton>
             </div>
         </form>
@@ -199,7 +199,7 @@
         <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:1.25rem;">
             <div style="display:flex; align-items:center; gap:0.5rem; color:#166534; font-weight:700; font-size:1.05rem; margin-bottom:0.75rem;">
                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Certificado suscrito formalmente con FirmaGob y despachado
+                Certificado suscrito formalmente con FirmaGob{{ $esCerrada ? ' y despachado formalmente' : ' (Listo para despacho por Jurídica Central)' }}
             </div>
             <dl class="datos" style="margin-bottom:1rem;">
                 <div><dt>Firmado por</dt><dd><strong>{{ $practica->firmadoDirectorGeneralPor?->nombre_completo ?? 'Mauricio Decap Fernández (Director General)' }}</strong></dd></div>

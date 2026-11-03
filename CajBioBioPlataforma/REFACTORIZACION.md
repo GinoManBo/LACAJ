@@ -337,6 +337,103 @@ Se implementó la estructura de facultades, perfiles y flujos jerárquicos de to
 
 ---
 
-## 7. Próximas Refactorizaciones (Pendientes)
+---
 
-*(Espacio reservado para documentar las siguientes fases de refactorización según se vayan abordando).*
+## 7. Arquitectura de Administración Central: Gobernanza Territorial, Gestión Exclusiva de Cupos, Rol Corrector Integral, Visor de Auditoría Inmutable, Métricas Globales y Exclusión de Alertas Masivas
+
+### 7.1 Contexto y Motivación
+El perfil de **Administrador General** corresponde al usuario central superior e independiente de las secretarías regionales y directores, concebido para brindar soporte técnico, corrección operativa y control macroinstitucional:
+
+1. **Gestión Exclusiva de Cupos a Nivel Nacional:**
+   * Es el único rol facultado en el sistema para aumentar o disminuir las vacantes de toda la red de consultorios jurídicos del país (192 sedes).
+   * Atiende las solicitudes formales de ampliación o reducción enviadas externamente por los abogados jefes de consultorio.
+   * **Bloqueo estricto de consistencia:** El sistema valida y bloquea cualquier intento de reducir la capacidad de una unidad por debajo de los postulantes que se encuentren activos en ella (`nueva_capacidad >= ocupados()`).
+
+2. **Rol Corrector Integral sobre Expedientes y Prácticas:**
+   * Actúa como supervisor técnico transversal para subsanar errores operativos de postulación o asignación cometidos en secretaría.
+   * Accede a todos los registros del país sin restricciones territoriales de `Scope`.
+   * Permite la edición directa de perfiles, correos, datos personales, universidad, fechas formativas, abogado tutor y sede asignada.
+   * Cuenta con la atribución de realizar traslados inter-sedes y cancelaciones administrativas directas con registro de motivo y fundamentación.
+   * Exporta nóminas completas de prácticas activas e históricas a Excel (.xlsx) con filtros avanzados por texto, región, consultorio y estado.
+
+3. **Administración de Usuarios, Roles y Gobernanza Territorial:**
+   * Crea y gestiona los accesos de las funcionarias de secretaría, abogados jefes, directores regionales y personal institucional.
+   * Vincula territorialmente a cada secretaria con su respectiva región operativa.
+   * **Prohibición de eliminación física (Ley N° 19.628):** Las cuentas de personal saliente o desvinculado se suspenden lógicamente (`activo = false`), resguardando de forma perpetua el historial institucional y la trazabilidad de auditoría.
+
+4. **Mantenimiento Técnico y Configuración de Sistema:**
+   * Supervisa los parámetros globales de la plataforma y exhibe prominentemente la etiqueta visible de la versión desplegada del software (`config('caj.version')`).
+
+5. **Monitoreo Global, Estadísticas y Reportes:**
+   * **Tasa de ocupación en tiempo real:** Supervisa la capacidad total, cupos ocupados, libres y porcentajes tanto a nivel consolidado nacional como desglosado por cada una de las 6 regiones.
+   * **Métricas anuales de tiempos promedio de asignación:** Calcula la cantidad de días transcurridos desde el ingreso de la postulación hasta el inicio formal de la práctica, desglosado por año y por región.
+   * **Métricas anuales de causales de cancelación:** Clasifica anualmente las cancelaciones por causales reglamentarias (`conducta`, `decision`, `error_registro`, `otro`).
+   * Exportación consolidada de métricas e indicadores a archivo Excel (.xlsx).
+
+6. **Visor del Log Inmutable de Auditoría:**
+   * Módulo especializado (`admin.auditoria`) para consultar el historial inmodificable de eventos registrados en la tabla `auditoria`.
+   * Permite filtrar por texto, tipo de acción, entidad afectada, usuario operador y rango de fechas.
+   * Muestra dirección IP y despliega el contenido íntegro del payload JSON en un visor interactivo, con exportación a Excel.
+
+7. **Delimitación Operativa de Alertas:**
+   * A diferencia de los postulantes y los abogados jefes, el Administrador Central está **expresamente excluido** de la recepción de alertas automáticas masivas de término de prácticas (notificaciones del día 166 o fin de los 6 meses), evitando el colapso de su bandeja de entrada ante los cientos de expedientes activos.
+
+---
+
+### 7.2 Componentes Afectados y Cambios Realizados
+
+| Archivo | Comportamiento Anterior | Estado Actual |
+| :--- | :--- | :--- |
+| `CajBioBioPlataforma/app/Models/Auditoria.php` | Modelo básico sin relación de usuario. | Añade relación `usuario()` a `Usuario`, cast datetime para `created_at` y soporte de consulta. |
+| `CajBioBioPlataforma/app/Http/Controllers/Admin/AuditoriaController.php` | No existía. | Controlador del Visor de Auditoría Inmutable con filtros multicriterio, paginación y exportación a Excel con OpenSpout. |
+| `CajBioBioPlataforma/app/Http/Controllers/Admin/EstadisticasController.php` | No existía. | Controlador de Métricas Globales: ocupación territorial, tiempos anuales de asignación, cancelaciones por causal y reporte Excel. |
+| `CajBioBioPlataforma/app/Http/Controllers/Admin/PracticantesController.php` | Sin filtros regionales ni exportación a Excel. | Añade filtros por región, consultorio y estado, y método `exportar()` a Excel (.xlsx). |
+| `CajBioBioPlataforma/app/Console/Commands/ActualizarEstadosPracticas.php` | Solo notificaba al tutor. | Incorpora alerta de día 166 al postulante y garantiza la exclusión expresa del Administrador de alertas masivas. |
+| `CajBioBioPlataforma/routes/portales/admin.php` | Sin rutas de auditoría ni estadísticas. | Registra rutas para `/admin/auditoria`, `/admin/estadisticas` y exportación de postulantes. |
+| `CajBioBioPlataforma/resources/views/admin/_nav.blade.php` | 4 pestañas de navegación. | Añade pestañas para «Métricas Globales» y «Log de Auditoría». |
+| `CajBioBioPlataforma/resources/views/layouts/portal.blade.php` | Menú lateral acotado. | Incorpora «Métricas Globales» y «Log de Auditoría» en la navegación del Administrador. |
+| `CajBioBioPlataforma/resources/views/admin/inicio.blade.php` | Resumen básico sin enlaces directos a métricas. | Tarjeta con versión de software, indicadores consolidados y accesos rápidos a estadísticas y auditoría. |
+| `CajBioBioPlataforma/resources/views/admin/auditoria/index.blade.php` | No existía. | Visor del log inmutable con indicadores, filtros, badges por tipo de acción, visualizador de payload JSON y exportación. |
+| `CajBioBioPlataforma/resources/views/admin/estadisticas/index.blade.php` | No existía. | Panel macroinstitucional con tablas de ocupación por región, tiempos de asignación y desglose de causales de cancelación. |
+| `CajBioBioPlataforma/resources/views/admin/practicantes/index.blade.php` | Búsqueda por texto simple. | Barra de filtros avanzados (región, consultorio, estado), visualización de notas en palabras y botón de exportación a Excel. |
+
+---
+
+## 8. Seguridad, Búsqueda Avanzada y Modelo de Despacho al Portal (Hallazgos #18 al #21)
+
+1. **Depuración de Parámetros Estadísticos (Hallazgo #18):**
+   * Se eliminó la captura huérfana de `$anioFiltro` en `EstadisticasController::index`, consolidando el panel macroinstitucional en un visor histórico multianual completo.
+
+2. **Exhaustividad en Filtros de Seguimiento Institucional (Hallazgo #19):**
+   * Se incorporaron los estados `nivelada_biobio` y `rechazada_sancion` en los selectores visuales y en las listas blancas `in_array` de los controladores de seguimiento: `Admin\PracticantesController`, `DirectorRegionalController` y `DirectorGeneralController`.
+
+3. **Búsqueda Multicriterio con Soporte de RUT (Hallazgo #20):**
+   * En `Secretaria\PracticasController::consulta` y `Secretaria\HistorialController::index`, se habilitó la búsqueda por RUT tanto con formato institucional (`XX.XXX.XXX-X`) como por dígitos limpios, subsanando el desfase con el placeholder de la interfaz.
+
+4. **Despacho Seguro al Portal y Descarga de Expediente Oficial (Hallazgo #21):**
+   * **Modelo de Notificación en Portal Autenticado:** Para prevenir que los correos automáticos institucionales con documentos adjuntos sean clasificados como SPAM o rebotados por políticas DMARC/SPF en casillas externas de los postulantes, el cierre formal se ejecuta como **«Autorizar y despachar al portal del postulante»**.
+   * **Descarga Institucional para la Secretaría:** Tanto la Secretaría Jurídica Central como las Secretarías Regionales disponen ahora de botones dedicados para descargar individualmente el Certificado Corte Suprema y la Resolución de Término, así como la descarga directa del **Expediente Completo en ZIP (`.zip`)**, permitiendo su remisión manual personalizada por correo electrónico si se requiere.
+
+5. **Protección y Validación de Aprobación en Descargas de Secretaría (Hallazgo #N1):**
+   * Se blindaron los 6 endpoints de descarga en `HistorialController` y `JuridicaBiobioController` (`descargarCertificado`, `descargarResolucion`, `descargarExpediente`), exigiendo la validación estricta de `CertificadosPractica::bloqueo($p)` previa a cualquier generación o entrega documental.
+   * Se impidió la descarga o emisión indebida de certificados en expedientes cancelados, reprobados o rechazados por sanción disciplinaria, previniendo emisiones fraudulentas con la leyenda «HA APROBADO» y errores 500 por falta de evaluación.
+   * En las vistas de secretaría regional y jurídica central, la botonera de descarga se condicionó exclusivamente a prácticas aprobatorias autorizadas.
+
+6. **Consistencia Visual en Disponibilidad y Capacidad de Consultorios (Hallazgo #N2):**
+   * Se ajustó `Practicas::nivelDisponibilidad` preservando compatibilidad completa con `'muchos'`, `'pocos'` y `'sin'`, incorporando además en `components/badge.blade.php` y `resources/css/app.css` las etiquetas y clases CSS para `'alta'`, `'media'`, `'baja'`, `.sec-barra.es-*` y `.barra-*`.
+   * Se eliminó el riesgo de badges y barras desprovistas de color CSS o con etiquetas genéricas en las vistas de Consultorios y Asignación de Postulaciones.
+
+7. **Gobernanza Institucional: Suscripción FirmaGob y Despacho Final por Jurídica (Hallazgo #N3):**
+   * Se corrigió la descoordinación en `DirectorGeneralController::subirFirmaGob`, asegurando que la carga del documento firmado con FirmaGob estampe la firma FEA, actualice `firmado_director_general_at` y notifique a la Secretaría Jurídica Central sin mutar prematuramente el estado a `cerrada_historial`.
+   * Se mantuvo como paso final vinculante el rol de la Secretaría Jurídica Central, permitiendo a sus evaluadores revisar el certificado suscrito y presionar el botón «Autorizar y despachar al portal del postulante» para culminar el ciclo reglamentario.
+
+8. **Normalización de Etiquetas en Bandejas de Seguimiento Directivo (Hallazgo #N4):**
+   * En `resources/views/director/seguimiento.blade.php` y `resources/views/director_general/seguimiento.blade.php`, se reemplazó `:texto="$estVisible"` por `:estado="$estVisible"`.
+   * Se aseguró que `<x-badge>` resuelva las etiquetas institucionalmente amigables («Por terminar», «Remitida a Biobío», «Nivelada en Biobío», «Cerrada / Despachada») en lugar de slugs de base de datos sin formato.
+
+9. **Desacoplamiento Estructural de Áreas y Especialidad en Consultorios (Hallazgo #N5):**
+   * Se eliminó la rigidez del atributo `area` en la ficha del Abogado Jefe (`abogados.area`), trasladando conceptualmente la materia y especialidad a los Consultorios y Unidades Operativas (las 192 sedes ya tipificadas con `tipo_unidad` como `CJ`, `ODL`, `CAVI`, `PMA`, `2DA INSTANCIA`, `OJA`).
+   * En `UsuariosController`, `UsuariosAdmin` y `resources/views/admin/usuarios/form.blade.php`, se retiró el selector forzado de materia y la validación obligatoria para abogados.
+   * La Segunda Instancia queda desacoplada de cualquier área ficticia, gobernándose exclusivamente por el indicador institucional `es_segunda_instancia` y su `region_id`.
+   * En el portal del tutor (`tutor/inicio.blade.php`) y en el listado de usuarios (`admin/usuarios/index.blade.php`), la cabecera y el detalle reflejan dinámicamente los consultorios reales asignados al profesional o su competencia ante la Corte de Apelaciones.
+   * Se retiró el rol heredado `'gobernador'` de `Usuario::ROLES_GESTIONABLES`.

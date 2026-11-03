@@ -49,8 +49,8 @@
     <div class="alerta alerta-info" style="margin:1rem 0;background:var(--azul-50);border:1px solid var(--azul-200);border-radius:.5rem;padding:1rem;display:flex;gap:.75rem;">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--azul-800);flex-shrink:0;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         <div>
-            <strong style="color:var(--azul-900);font-size:1rem;">Expediente Cerrado y Despachado Formalmente</strong>
-            <p style="margin:.25rem 0 0;font-size:.88rem;color:var(--azul-950);">Certificados despachados por correo al postulante{{ $practica->despachada_at ? ' el '.$practica->despachada_at->format('d-m-Y') : '' }}. El postulante ya tiene acceso de descarga en su portal.</p>
+            <strong style="color:var(--azul-900);font-size:1rem;">Expediente Cerrado y Despachado al Portal</strong>
+            <p style="margin:.25rem 0 0;font-size:.88rem;color:var(--azul-950);">Documentos oficiales autorizados y disponibles en el portal del postulante{{ $practica->despachada_at ? ' desde el '.$practica->despachada_at->format('d-m-Y') : '' }}. La secretaría puede descargar el expediente completo a continuación en caso de requerir remitirlo personalmente por correo.</p>
         </div>
     </div>
 @endif
@@ -73,13 +73,37 @@
         @endif
 
         @if ($puedeDespachar && ! $esCerrada)
-            <form action="{{ route('secretaria.juridica.despachar', $practica->id) }}" method="POST" onsubmit="return confirm('¿Confirmar el despacho formal de los certificados al postulante y archivar el expediente en CerradaHistorial?');">
+            <form action="{{ route('secretaria.juridica.despachar', $practica->id) }}" method="POST" onsubmit="return confirm('¿Confirmar la autorización y el despacho formal de los certificados al portal del postulante, archivando el expediente en Historial?');">
                 @csrf
                 <x-boton tipo="exito">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.4rem;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    Despachar Certificados por Correo y Cerrar Expediente
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.4rem;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Autorizar y despachar al portal del postulante
                 </x-boton>
             </form>
+        @endif
+
+        @php
+            $esAprobatoriaJur = $practica->nota_practica !== null
+                ? \App\Support\Notas::esAprobatoria($practica->nota_practica)
+                : ($evaluacion && $evaluacion->aprobado);
+            $puedeDescargarJur = $evaluacion && $esAprobatoriaJur
+                && ! in_array($practica->estado, ['cancelada', 'rechazada_sancion'], true)
+                && ($practica->documentos_autorizados || $practica->estado === 'cerrada_historial' || $practica->firmado_director_general_at);
+        @endphp
+
+        @if ($puedeDescargarJur)
+            <x-boton tipo="secundario" :href="route('secretaria.juridica.certificado', $practica->id)" target="_blank">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.3rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Descargar Certificado
+            </x-boton>
+            <x-boton tipo="secundario" :href="route('secretaria.juridica.resolucion', $practica->id)" target="_blank">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.3rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Descargar Resolución
+            </x-boton>
+            <x-boton tipo="primario" :href="route('secretaria.juridica.expediente', $practica->id)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.3rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Descargar Expediente (ZIP)
+            </x-boton>
         @endif
     </div>
 </div>

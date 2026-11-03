@@ -34,11 +34,11 @@ class TutorController extends Controller
 
         if ($abogado->es_segunda_instancia) {
             return Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $abogado->region_id))
-                ->with(['practicante.postulante', 'consultorio.region', 'consultorio.comuna', 'evaluacion', 'calificaciones', 'abogado.usuario']);
+                ->with(['practicante.postulante', 'consultorio.region', 'consultorio.comuna', 'evaluacion', 'calificaciones', 'calificacionPrimeraInstancia', 'calificacionSegundaInstancia', 'abogado.usuario']);
         }
 
         return Practica::where('abogado_id', $abogado->id)
-            ->with(['practicante.postulante', 'consultorio.region', 'consultorio.comuna', 'evaluacion', 'calificaciones', 'abogado.usuario']);
+            ->with(['practicante.postulante', 'consultorio.region', 'consultorio.comuna', 'evaluacion', 'calificaciones', 'calificacionPrimeraInstancia', 'calificacionSegundaInstancia', 'abogado.usuario']);
     }
 
     public function inicio(Request $request)

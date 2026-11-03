@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Practica;
 use App\Models\Usuario;
 use App\Services\Auditoria;
+use App\Services\CertificadosPractica;
 use App\Services\Notificaciones;
 use App\Services\Practicas;
 use App\Support\Notas;
@@ -26,9 +27,15 @@ class HistorialController extends Controller
 
         $base = fn () => Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $region))->whereIn('estado', self::ESTADOS_HISTORIAL);
 
+        $qLimpio = preg_replace('/[^0-9kK]/', '', $q);
+
         $practicas = $base()->with('practicante.postulante', 'consultorio', 'abogado.usuario')
             ->when($q !== '', fn ($query) => $query->whereHas('practicante.postulante', fn ($p) => $p
-                ->where('nombre', 'like', "%$q%")->orWhere('apellido', 'like', "%$q%")))
+                ->where('nombre', 'like', "%$q%")
+                ->orWhere('apellido', 'like', "%$q%")
+                ->orWhere('rut', 'like', "%$q%")
+                ->when($qLimpio !== '', fn ($sub) => $sub->orWhere('rut', 'like', "%$qLimpio%"))
+            ))
             ->when(ctype_digit((string) $anio), fn ($query) => $query->whereYear('fecha_inicio', $anio))
             ->orderByDesc('fecha_termino')->get();
 
@@ -124,5 +131,71 @@ class HistorialController extends Controller
         });
 
         return back()->with('ok', 'Competencia regional cerrada y expediente remitido a Jurídica Central Biobío (Concepción). El expediente queda en modo solo lectura para la región de origen.');
+    }
+
+    /**
+     * Descarga del Certificado Oficial para la Corte Suprema (PDF).
+     */
+    public function descargarCertificado(Request $request, int $id)
+    {
+        $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', Scope::regionId($request->user())))
+            ->whereIn('estado', self::ESTADOS_HISTORIAL)
+            ->with(['practicante.postulante', 'consultorio.region', 'evaluacion', 'certificadoFirmagob'])
+            ->findOrFail($id);
+
+        if ($msg = CertificadosPractica::bloqueo($p)) {
+            return back()->with('error', $msg)->withErrors(['descarga' => $msg]);
+        }
+
+        $pdfBin = CertificadosPractica::pdfCertificado($p, $request->user());
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        return response($pdfBin, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="Certificado_Corte_Suprema_'.$rut.'.pdf"',
+        ]);
+    }
+
+    /**
+     * Descarga de la Resolución Oficial de Término (PDF).
+     */
+    public function descargarResolucion(Request $request, int $id)
+    {
+        $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', Scope::regionId($request->user())))
+            ->whereIn('estado', self::ESTADOS_HISTORIAL)
+            ->with(['practicante.postulante', 'consultorio.region', 'evaluacion'])
+            ->findOrFail($id);
+
+        if ($msg = CertificadosPractica::bloqueo($p)) {
+            return back()->with('error', $msg)->withErrors(['descarga' => $msg]);
+        }
+
+        $pdfBin = CertificadosPractica::pdfResolucion($p, $request->user());
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        return response($pdfBin, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="Resolucion_Aprobacion_'.$rut.'.pdf"',
+        ]);
+    }
+
+    /**
+     * Descarga del Expediente Completo en ZIP para remisión manual o correo personal.
+     */
+    public function descargarExpediente(Request $request, int $id)
+    {
+        $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', Scope::regionId($request->user())))
+            ->whereIn('estado', self::ESTADOS_HISTORIAL)
+            ->with(['practicante.postulante', 'consultorio.region', 'evaluacion', 'certificadoFirmagob'])
+            ->findOrFail($id);
+
+        if ($msg = CertificadosPractica::bloqueo($p)) {
+            return back()->with('error', $msg)->withErrors(['descarga' => $msg]);
+        }
+
+        $zipPath = CertificadosPractica::zipExpediente($p, $request->user());
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        return response()->download($zipPath, 'Expediente_Practica_'.$rut.'.zip')->deleteFileAfterSend();
     }
 }

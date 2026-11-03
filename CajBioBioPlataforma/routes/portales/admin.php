@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CapacidadController;
 use App\Http\Controllers\Admin\ConsultoriosController;
+use App\Http\Controllers\Admin\EstadisticasController;
 use App\Http\Controllers\Admin\InicioController;
 use App\Http\Controllers\Admin\PracticantesController;
 use App\Http\Controllers\Admin\UsuariosController;
@@ -12,6 +14,7 @@ Route::prefix('admin')->name('admin.')->middleware('rol:administrador')->group(f
 
     Route::prefix('practicantes')->name('practicantes.')->group(function () {
         Route::get('/', [PracticantesController::class, 'index'])->name('index');
+        Route::get('/exportar', [PracticantesController::class, 'exportar'])->name('exportar');
         Route::get('/{practica}', [PracticantesController::class, 'ver'])->whereNumber('practica')->name('ver');
         Route::put('/{practica}', [PracticantesController::class, 'actualizar'])->whereNumber('practica')->name('actualizar');
         Route::post('/{practica}/trasladar', [PracticantesController::class, 'trasladar'])->whereNumber('practica')->name('trasladar');
@@ -52,5 +55,15 @@ Route::prefix('admin')->name('admin.')->middleware('rol:administrador')->group(f
         Route::post('/{usuario}/activar', [UsuariosController::class, 'activar'])->whereNumber('usuario')->name('activar');
         Route::post('/{usuario}/desactivar', [UsuariosController::class, 'desactivar'])->whereNumber('usuario')->name('desactivar');
         Route::post('/{usuario}/resetear-password', [UsuariosController::class, 'resetearPassword'])->whereNumber('usuario')->name('resetear');
+    });
+
+    Route::prefix('estadisticas')->name('estadisticas.')->group(function () {
+        Route::get('/', [EstadisticasController::class, 'index'])->name('index');
+        Route::get('/exportar', [EstadisticasController::class, 'exportar'])->name('exportar');
+    });
+
+    Route::prefix('auditoria')->name('auditoria.')->group(function () {
+        Route::get('/', [AuditoriaController::class, 'index'])->name('index');
+        Route::get('/exportar', [AuditoriaController::class, 'exportar'])->name('exportar');
     });
 });

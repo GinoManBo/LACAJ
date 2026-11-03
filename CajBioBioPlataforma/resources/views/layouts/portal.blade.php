@@ -25,10 +25,12 @@
     ];
     $menu = match ($u->rol) {
         'administrador' => [
-            ['admin.inicio', 'Administración', 'inicio'],
+            ['admin.inicio', 'Panel de Control', 'inicio'],
             ['admin.practicantes.index', 'Postulantes', 'lista'],
-            ['admin.consultorios.index', 'Consultorios y Sedes', 'edificio'],
-            ['admin.usuarios.index', 'Usuarios', 'maletin'],
+            ['admin.consultorios.index', 'Consultorios y Cupos', 'edificio'],
+            ['admin.usuarios.index', 'Usuarios y Roles', 'maletin'],
+            ['admin.estadisticas.index', 'Métricas Globales', 'reloj'],
+            ['admin.auditoria.index', 'Log de Auditoría', 'lista'],
         ],
         'secretaria' => array_merge([
             ['secretaria.panel', 'Panel general', 'inicio'],
@@ -44,9 +46,23 @@
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
         ],
         'abogado' => [['tutor.inicio', ($u->abogado?->es_segunda_instancia ? 'Segunda Instancia (Corte)' : 'Mis postulantes'), 'inicio']],
-        'practicante', 'postulante' => $u->practicante?->practicas()->exists()
-            ? [['practicante.inicio', 'Mi práctica', 'inicio']]
-            : [['postulante.inicio', 'Mi postulación', 'inicio']],
+        'practicante', 'postulante' => (function () use ($u) {
+            $tienePractica = $u->practicante?->practicas()->exists();
+            $practicaActiva = $u->practicante?->practicas()->latest('id')->first();
+            $esCancelada = $practicaActiva && $practicaActiva->estado === 'cancelada';
+            $tienePostulacion = \App\Models\Postulacion::whereHas('postulante', fn ($q) => $q->where('rut', $u->rut))->exists()
+                || \App\Models\PostulacionBorrador::where('usuario_id', $u->id)->exists();
+
+            $links = [];
+            if ($tienePostulacion || ! $tienePractica || $esCancelada) {
+                $links[] = ['postulante.inicio', 'Mi postulación', 'lista'];
+            }
+            if ($tienePractica) {
+                $links[] = ['practicante.inicio', 'Mi práctica', 'maletin'];
+            }
+
+            return $links ?: [['postulante.inicio', 'Mi postulación', 'inicio']];
+        })(),
         'director_regional' => [
             ['director.inicio', 'Validación de Evaluaciones', 'inicio'],
             ['director.seguimiento', 'Seguimiento de Prácticas', 'maletin'],
@@ -143,6 +159,7 @@
 
         <main id="contenido" class="portal-contenido">
             @if (session('ok'))<div class="alerta alerta-ok" role="status">{{ session('ok') }}</div>@endif
+            @if (session('error'))<div class="alerta alerta-error" role="alert">{{ session('error') }}</div>@endif
             @if ($errors->any())
                 <div class="alerta alerta-error" role="alert"><div><strong>Revisa lo siguiente para continuar.</strong><ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div></div>
             @endif

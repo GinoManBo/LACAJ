@@ -35,6 +35,7 @@ class Practica extends Model
     public function calificaciones() { return $this->hasMany(Calificacion::class)->orderBy('instancia'); }
     public function calificacionPrimeraInstancia() { return $this->hasOne(Calificacion::class)->where('instancia', 1); }
     public function calificacionSegundaInstancia() { return $this->hasOne(Calificacion::class)->where('instancia', 2); }
+    public function calificacionTerceraInstancia() { return $this->hasOne(Calificacion::class)->where('instancia', 3); }
     public function traslados() { return $this->hasMany(PracticaTraslado::class); }
     public function documentos() { return $this->hasMany(Documento::class); }
     public function certificados() { return $this->hasMany(Certificado::class); }

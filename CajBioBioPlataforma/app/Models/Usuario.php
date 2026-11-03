@@ -23,7 +23,7 @@ class Usuario extends Authenticatable
     ];
 
     public const ROLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'director_regional', 'jefe_ucoe', 'director_general', 'postulante', 'gobernador', 'practicante'];
-    public const ROLES_GESTIONABLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'director_regional', 'jefe_ucoe', 'director_general', 'gobernador'];
+    public const ROLES_GESTIONABLES = ['administrador', 'secretaria', 'juridica_central', 'abogado', 'director_regional', 'jefe_ucoe', 'director_general'];
 
     public function region() { return $this->belongsTo(Region::class); }
     public function abogado() { return $this->hasOne(Abogado::class, 'usuario_id'); }
@@ -54,7 +54,20 @@ class Usuario extends Authenticatable
      */
     public function portalInicioPostulante(): string
     {
-        if ($this->practicante?->practicas()->exists()) {
+        $practica = $this->practicante?->practicas()->latest('id')->first();
+        if ($practica && $practica->estado !== 'cancelada') {
+            return route('practicante.inicio');
+        }
+
+        // Si la última práctica fue cancelada pero el postulante tiene una nueva postulación o borrador:
+        $tienePostulacion = Postulacion::whereHas('postulante', fn ($q) => $q->where('rut', $this->rut))->exists();
+        $tieneBorrador = PostulacionBorrador::where('usuario_id', $this->id)->exists();
+
+        if ($tienePostulacion || $tieneBorrador) {
+            return route('postulante.inicio');
+        }
+
+        if ($practica) {
             return route('practicante.inicio');
         }
 
@@ -75,8 +88,30 @@ class Usuario extends Authenticatable
      */
     public function etapa(): string
     {
-        // 1. Verificamos si ya cuenta con una práctica asignada (fase activa / finalizada / cancelada)
         $practica = $this->practicante?->practicas()->latest('id')->first();
+        $postulacion = Postulacion::whereHas('postulante', fn ($q) => $q->where('rut', $this->rut))
+            ->latest('fecha_postulacion')
+            ->first();
+        $tieneBorrador = PostulacionBorrador::where('usuario_id', $this->id)->exists();
+
+        // 1. Si la última práctica fue cancelada y cuenta con una nueva postulación o borrador posterior:
+        if ($practica && $practica->estado === 'cancelada') {
+            if ($postulacion && ($postulacion->created_at >= $practica->created_at || in_array($postulacion->estado, ['pendiente', 'derivada', 'subsanacion'], true))) {
+                return match ($postulacion->estado) {
+                    'pendiente', 'derivada' => 'en_revision',
+                    'rechazada' => 'rechazada',
+                    'aceptada' => 'practica_por_iniciar',
+                    default => $postulacion->estado,
+                };
+            }
+            if ($tieneBorrador) {
+                return 'borrador';
+            }
+
+            return 'practica_cancelada';
+        }
+
+        // 2. Si cuenta con una práctica asignada vigente o completada
         if ($practica) {
             return match ($practica->estado) {
                 'por_iniciar' => 'practica_por_iniciar',
@@ -87,11 +122,7 @@ class Usuario extends Authenticatable
             };
         }
 
-        // 2. Si no tiene práctica, verificamos el estado de su postulación formal
-        $postulacion = Postulacion::whereHas('postulante', fn ($q) => $q->where('rut', $this->rut))
-            ->latest('fecha_postulacion')
-            ->first();
-
+        // 3. Si no tiene práctica, verificamos el estado de su postulación formal
         if ($postulacion) {
             return match ($postulacion->estado) {
                 'pendiente', 'derivada' => 'en_revision',
@@ -101,8 +132,7 @@ class Usuario extends Authenticatable
             };
         }
 
-        // 3. Verificamos si tiene un borrador guardado
-        $tieneBorrador = PostulacionBorrador::where('usuario_id', $this->id)->exists();
+        // 4. Verificamos si tiene un borrador guardado
         if ($tieneBorrador) {
             return 'borrador';
         }

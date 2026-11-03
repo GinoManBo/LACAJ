@@ -13,13 +13,11 @@ use Illuminate\Validation\Rule;
 
 class UsuariosController extends Controller
 {
-    private const AREAS = ['civil', 'penal', 'laboral', 'familia'];
-
     public function index(Request $request)
     {
         $f = $request->validate(['rol' => ['nullable', Rule::in(Usuario::ROLES_GESTIONABLES)], 'estado' => ['nullable', 'in:activo,inactivo'], 'q' => ['nullable', 'string', 'max:100']]);
 
-        $usuarios = Usuario::with(['region', 'abogado'])->whereIn('rol', Usuario::ROLES_GESTIONABLES)
+        $usuarios = Usuario::with(['region', 'abogado.consultorios', 'abogado.region'])->whereIn('rol', Usuario::ROLES_GESTIONABLES)
             ->when($f['rol'] ?? null, fn ($q, $r) => $q->where('rol', $r))
             ->when($f['estado'] ?? null, fn ($q, $e) => $q->where('activo', $e === 'activo'))
             ->when($f['q'] ?? null, fn ($q, $t) => $q->where(fn ($w) => $w->where('nombre', 'like', "%{$t}%")->orWhere('apellido', 'like', "%{$t}%")->orWhere('email', 'like', "%{$t}%")))
@@ -84,7 +82,7 @@ class UsuariosController extends Controller
     private function datosForm(Usuario $u): array
     {
         return [
-            'usuario' => $u, 'roles' => Usuario::ROLES_GESTIONABLES, 'areas' => self::AREAS,
+            'usuario' => $u, 'roles' => Usuario::ROLES_GESTIONABLES,
             'regiones' => Region::operativas()->orderBy('orden')->get(['id', 'nombre']),
             'consultorios' => Consultorio::where('activo', true)->orderBy('nombre')->get(['id', 'nombre']),
         ];
@@ -99,8 +97,13 @@ class UsuariosController extends Controller
             'rut' => ['required', 'string', fn ($a, $v, $fail) => Rut::valido($v) ?: $fail('El RUT no es válido (revise el dígito verificador).'),
                 fn ($a, $v, $fail) => Usuario::where('rut', Rut::normalizar($v))->where('id', '!=', $u?->id ?? 0)->exists() ? $fail('Ya existe un usuario con ese RUT.') : null],
             'rol' => ['required', Rule::in(Usuario::ROLES_GESTIONABLES)],
-            'region_id' => ['nullable', 'required_if:rol,secretaria', Rule::exists('regiones', 'id')->where('operativa', true)],
-            'area' => ['nullable', 'required_if:rol,abogado', Rule::in(self::AREAS)],
+            'region_id' => [
+                'nullable',
+                Rule::requiredIf(fn () => in_array(request('rol'), ['secretaria', 'director_regional', 'jefe_ucoe'], true) || (request('rol') === 'abogado' && request()->boolean('es_segunda_instancia'))),
+                Rule::exists('regiones', 'id')->where('operativa', true),
+            ],
+            'es_segunda_instancia' => ['nullable', 'boolean'],
+            'area' => ['nullable', 'string', 'max:50'],
             'consultorios' => ['nullable', 'array'],
             'consultorios.*' => ['integer', 'exists:consultorios,id'],
         ];
@@ -110,8 +113,8 @@ class UsuariosController extends Controller
     {
         return [
             'required' => 'Este campo es obligatorio.',
-            'region_id.required_if' => 'La región es obligatoria para el rol Secretaria.',
-            'area.required_if' => 'El área es obligatoria para el rol Abogado tutor.',
+            'region_id.required' => 'La región es obligatoria para este cargo.',
+            'region_id.required_if' => 'La región es obligatoria para este cargo.',
             'email' => 'Ingrese un correo válido.', 'email.unique' => 'Ya existe un usuario con ese correo.',
             'max' => 'Es demasiado largo.', 'in' => 'Seleccione una opción válida.', 'exists' => 'Seleccione una opción válida.',
         ];

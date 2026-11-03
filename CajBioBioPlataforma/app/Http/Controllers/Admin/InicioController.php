@@ -14,7 +14,7 @@ class InicioController extends Controller
     public function __invoke()
     {
         $consultorios = Consultorio::where('activo', true)->withCount([
-            'practicas as ocupados' => fn ($q) => $q->whereIn('estado', ['por_iniciar', 'activa']),
+            'practicas as ocupados' => fn ($q) => $q->whereIn('estado', ['por_iniciar', 'activa'])->where('fecha_termino', '>', today()),
         ])->get();
         $cupos = (int) $consultorios->sum('capacidad');
         $ocupados = (int) $consultorios->sum('ocupados');

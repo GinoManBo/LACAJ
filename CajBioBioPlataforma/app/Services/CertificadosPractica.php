@@ -29,7 +29,8 @@ class CertificadosPractica
         if (! $ev) {
             return 'La práctica aún no tiene la evaluación final del abogado tutor.';
         }
-        if (! $ev->aprobado) {
+        $estaAprobada = $p->nota_practica !== null ? Notas::esAprobatoria($p->nota_practica) : (bool) $ev->aprobado;
+        if (! $estaAprobada) {
             return 'La práctica no fue aprobada, por lo que no corresponde emitir documentos.';
         }
         if (! $p->documentos_autorizados) {
@@ -41,6 +42,10 @@ class CertificadosPractica
 
     public static function pdfCertificado(Practica $p, Usuario $emisor): string
     {
+        if ($p->certificado_firmagob_id && $p->certificadoFirmagob && Almacenamiento::existe($p->certificadoFirmagob->nombre_almacenado)) {
+            return file_get_contents(Almacenamiento::ruta($p->certificadoFirmagob->nombre_almacenado));
+        }
+
         return DB::transaction(function () use ($p, $emisor) {
             Certificado::firstOrCreate(
                 ['practica_id' => $p->id, 'tipo' => self::CERTIFICADO],
@@ -117,6 +122,23 @@ class CertificadosPractica
             'ucoe_cargo_oficial' => 'Jefe de la Unidad de Consultorios y Oficinas Especializadas (UCOE)',
             'hoy' => now(),
         ];
+    }
+
+    public static function zipExpediente(Practica $p, Usuario $emisor): string
+    {
+        $p->loadMissing(['practicante.postulante', 'certificadoFirmagob']);
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+        $pdfCert = self::pdfCertificado($p, $emisor);
+        $pdfRes = self::pdfResolucion($p, $emisor);
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'expediente_').'.zip';
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString("Certificado_Corte_Suprema_{$rut}.pdf", $pdfCert);
+        $zip->addFromString("Resolucion_Aprobacion_{$rut}.pdf", $pdfRes);
+        $zip->close();
+
+        return $zipPath;
     }
 
     private static function firmaBase64(Practica $p): ?string

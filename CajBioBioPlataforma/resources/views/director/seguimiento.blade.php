@@ -43,6 +43,8 @@
                 <option value="activa" {{ $estado === 'activa' ? 'selected' : '' }}>En curso (Activa)</option>
                 <option value="finalizada" {{ $estado === 'finalizada' ? 'selected' : '' }}>Finalizada</option>
                 <option value="remitida_biobio" {{ $estado === 'remitida_biobio' ? 'selected' : '' }}>Remitida a Jurídica</option>
+                <option value="nivelada_biobio" {{ $estado === 'nivelada_biobio' ? 'selected' : '' }}>Nivelada de Oficio</option>
+                <option value="rechazada_sancion" {{ $estado === 'rechazada_sancion' ? 'selected' : '' }}>Rechazada por sanción</option>
                 <option value="cerrada_historial" {{ $estado === 'cerrada_historial' ? 'selected' : '' }}>Cerrada con FirmaGob</option>
                 <option value="cancelada" {{ $estado === 'cancelada' ? 'selected' : '' }}>Cancelada</option>
             </select>
@@ -95,7 +97,7 @@
                             {{ $p->fecha_termino ? $p->fecha_termino->format('d/m/Y') : '—' }}
                         </td>
                         <td>
-                            <x-badge :estado="$p->estado" :texto="$estVisible" />
+                            <x-badge :estado="$estVisible" />
                         </td>
                         <td>
                             @if ($p->validada_director_at)

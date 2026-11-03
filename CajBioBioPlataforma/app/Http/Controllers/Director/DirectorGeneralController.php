@@ -66,19 +66,18 @@ class DirectorGeneralController extends Controller
         }
 
         if ($estadoFiltro === 'pendientes') {
-            $base->where('estado', '!=', 'cerrada_historial')->whereNull('firmado_director_general_at');
+            $base->whereNull('firmado_director_general_at');
         } elseif ($estadoFiltro === 'firmadas') {
-            $base->where(fn ($query) => $query->where('estado', 'cerrada_historial')->orWhereNotNull('firmado_director_general_at'));
+            $base->whereNotNull('firmado_director_general_at');
         }
 
         $expedientes = $base->orderByDesc('updated_at')->paginate(20)->withQueryString();
 
         $totales = [
-            'pendientes_firma' => Practica::whereIn('estado', ['remitida_biobio', 'nivelada_biobio', 'finalizada'])
+            'pendientes_firma' => Practica::whereIn('estado', ['remitida_biobio', 'nivelada_biobio', 'finalizada', 'cerrada_historial'])
                 ->whereNull('firmado_director_general_at')
                 ->count(),
-            'firmadas_firmagob' => Practica::where('estado', 'cerrada_historial')
-                ->whereNotNull('firmado_director_general_at')
+            'firmadas_firmagob' => Practica::whereNotNull('firmado_director_general_at')
                 ->count(),
             'total_nacional' => Practica::whereIn('estado', ['remitida_biobio', 'nivelada_biobio', 'finalizada', 'cerrada_historial'])->count(),
         ];
@@ -135,7 +134,7 @@ class DirectorGeneralController extends Controller
             'criterios' => $criterios,
             'conceptoFinal' => Notas::concepto($p->nota_practica),
             'informeSaj' => $informeSaj,
-            'puedeFirmarCierre' => $p->estado !== 'cerrada_historial' || $p->firmado_director_general_at === null,
+            'puedeFirmarCierre' => $p->estado !== 'cerrada_historial' && $p->firmado_director_general_at === null,
             'esCerrada' => $p->estado === 'cerrada_historial',
         ]);
     }
@@ -197,7 +196,8 @@ class DirectorGeneralController extends Controller
         $zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($practicas as $p) {
-            if ($p->evaluacion && $p->evaluacion->aprobado) {
+            $estaAprobada = $p->nota_practica !== null ? Notas::esAprobatoria($p->nota_practica) : ($p->evaluacion && $p->evaluacion->aprobado);
+            if ($estaAprobada) {
                 $pdfBin = CertificadosPractica::pdfCertificado($p, $request->user());
                 $rut = str_replace(['.', '-'], '', $p->practicante->postulante->rut);
                 $zip->addFromString("Certificado_Corte_Suprema_{$rut}_{$p->id}.pdf", $pdfBin);
@@ -257,22 +257,17 @@ class DirectorGeneralController extends Controller
             ]
         );
 
-        // GATILLADOR DE CIERRE: cambio de estado a CerradaHistorial y despacho vinculante
+        // Registro de la firma digital con FirmaGob por el Director General.
+        // Decisión institucional: Secretaría Jurídica Central ejecuta el paso final de revisión y despacho formal.
         $p->update([
-            'estado' => 'cerrada_historial',
             'firmado_director_general_at' => now(),
             'firmado_director_general_por' => $request->user()->id,
             'firmagob_folio' => $datos['folio'] ?? null,
             'firmagob_url' => $datos['url_verificacion'] ?? null,
             'certificado_firmagob_id' => $doc->id,
-            'documentos_autorizados' => true,
-            'documentos_autorizados_at' => now(),
-            'documentos_autorizados_por' => $request->user()->id,
-            'despachada_at' => now(),
-            'despachada_por' => $request->user()->id,
         ]);
 
-        Auditoria::registrar('director_general.firma_cierre', 'practica', $p->id, [
+        Auditoria::registrar('director_general.firma_gob', 'practica', $p->id, [
             'documento_id' => $doc->id,
             'folio' => $datos['folio'] ?? null,
             'url_verificacion' => $datos['url_verificacion'] ?? null,
@@ -280,19 +275,28 @@ class DirectorGeneralController extends Controller
             'director_id' => $request->user()->id,
         ], $request->user()->id);
 
-        // Notificación formal al postulante
-        if ($usuarioId = $p->practicante?->usuario_id) {
+        // Notificación a la Secretaría Jurídica Central de Biobío de que el expediente cuenta con la firma del Director General y queda listo para su despacho formal
+        $usuariosJuridica = Usuario::where('activo', true)
+            ->whereIn('rol', ['secretaria', 'juridica_central'])
+            ->whereHas('region', fn ($q) => $q->where('codigo', 'VIII'))
+            ->get();
+
+        $postulanteNombre = $p->practicante?->postulante
+            ? ($p->practicante->postulante->nombre . ' ' . $p->practicante->postulante->apellido)
+            : 'el postulante';
+
+        foreach ($usuariosJuridica as $uj) {
             Notificaciones::crear(
-                $usuarioId,
+                $uj->id,
                 'aviso',
-                'Certificado Corte Suprema firmado con FirmaGob',
-                'Su práctica profesional ha sido aprobada formalmente. El Director General ha suscrito con Firma Electrónica Avanzada (FirmaGob) su Certificado Oficial para la Corte Suprema, el cual ya está disponible para su descarga.',
+                'Certificado con FirmaGob listo para despacho',
+                "El Director General ha firmado con FirmaGob el Certificado Oficial de {$postulanteNombre}. El expediente se encuentra listo para autorizar y despachar formalmente al portal.",
                 'practica',
                 $p->id
             );
         }
 
-        return redirect()->route('director_general.ver', $p->id)->with('ok', 'Certificado suscrito con FirmaGob registrado exitosamente. El expediente ha cambiado a estado CerradaHistorial y los documentos fueron habilitados al postulante.');
+        return redirect()->route('director_general.ver', $p->id)->with('ok', 'Certificado suscrito con FirmaGob registrado exitosamente. El expediente ha quedado disponible en Secretaría Jurídica Central para su revisión final y despacho formal al postulante.');
     }
 
     /**
@@ -325,7 +329,7 @@ class DirectorGeneralController extends Controller
             $base->where('consultorio_id', (int) $consultorioId);
         }
 
-        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial', 'cancelada'], true)) {
+        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'rechazada_sancion', 'cerrada_historial', 'cancelada'], true)) {
             $base->where('estado', $estado);
         }
 
@@ -370,7 +374,7 @@ class DirectorGeneralController extends Controller
             $base->where('consultorio_id', (int) $consultorioId);
         }
 
-        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial', 'cancelada'], true)) {
+        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'rechazada_sancion', 'cerrada_historial', 'cancelada'], true)) {
             $base->where('estado', $estado);
         }
 

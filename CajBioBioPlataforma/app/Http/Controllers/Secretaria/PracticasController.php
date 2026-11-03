@@ -25,7 +25,10 @@ class PracticasController extends Controller
         $region = Scope::regionId($request->user());
         $practicas = $this->consulta($request, $region)->get()->each(fn ($p) => $this->decorar($p));
         $capacidad = Consultorio::where('region_id', $region)->where('activo', true)->sum('capacidad');
-        $ocupados = Practica::whereHas('consultorio', fn ($q) => $q->where('region_id', $region))->whereIn('estado', ['por_iniciar', 'activa'])->count();
+        $ocupados = Practica::whereHas('consultorio', fn ($q) => $q->where('region_id', $region))
+            ->whereIn('estado', ['por_iniciar', 'activa'])
+            ->where('fecha_termino', '>', today())
+            ->count();
 
         return view('secretaria.practicas.index', [
             'practicas' => $practicas,
@@ -65,7 +68,7 @@ class PracticasController extends Controller
     public function descargarCartaPresentacion(Request $request, int $id)
     {
         $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial']);
-        $pdf = CartaPresentacionService::generarPdf($p, $request->user());
+        $pdf = CartaPresentacionService::generarPdf($p);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -212,12 +215,17 @@ class PracticasController extends Controller
     private function consulta(Request $request, ?int $region)
     {
         $q = trim((string) $request->query('q'));
+        $qLimpio = preg_replace('/[^0-9kK]/', '', $q);
 
         return Practica::with('practicante.postulante', 'consultorio', 'abogado.usuario')
             ->whereHas('consultorio', fn ($c) => $c->where('region_id', $region))
             ->whereIn('estado', ['por_iniciar', 'activa'])
             ->when($q !== '', fn ($query) => $query->whereHas('practicante.postulante', fn ($p) => $p
-                ->where('nombre', 'like', "%$q%")->orWhere('apellido', 'like', "%$q%")))
+                ->where('nombre', 'like', "%$q%")
+                ->orWhere('apellido', 'like', "%$q%")
+                ->orWhere('rut', 'like', "%$q%")
+                ->when($qLimpio !== '', fn ($sub) => $sub->orWhere('rut', 'like', "%$qLimpio%"))
+            ))
             ->orderBy('fecha_termino');
     }
 

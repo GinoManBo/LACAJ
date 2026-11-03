@@ -36,9 +36,11 @@ class DirectorRegionalController extends Controller
         }
 
         // Revisores colegiados de UCOE en la Región del Biobío
-        $revisoresBiobio = ['Verónica Cifuentes', 'Graciela Paredes', 'Verónica Cifuentes Matus', 'Graciela Paredes Saavedra'];
-        if ($u->rol === 'secretaria' && $u->region?->codigo === 'BI' && in_array($u->nombre_completo, $revisoresBiobio, true)) {
-            return;
+        if ($u->rol === 'secretaria' && $u->region?->codigo === 'BI') {
+            $nom = mb_strtolower($u->nombre_completo);
+            if (str_contains($nom, 'cifuentes') || str_contains($nom, 'paredes')) {
+                return;
+            }
         }
 
         abort(403, 'Acceso restringido a Directores Regionales y Jefatura / Revisores de UCOE.');
@@ -243,6 +245,15 @@ class DirectorRegionalController extends Controller
 
         $p->update($actualizacion);
 
+        $notaActual = $p->nota_practica ?? $notaNueva;
+        $esAprobatoria = Notas::esAprobatoria($notaActual);
+        if ($p->evaluacion) {
+            $p->evaluacion->update([
+                'promedio' => $notaActual,
+                'aprobado' => $esAprobatoria,
+            ]);
+        }
+
         $evento = $fueModificada ? 'director.modificar_evaluacion' : 'director.validar_evaluacion';
         Auditoria::registrar($evento, 'practica', $p->id, [
             'director_id' => $request->user()->id,
@@ -364,7 +375,7 @@ class DirectorRegionalController extends Controller
             $base->where('consultorio_id', (int) $consultorioId);
         }
 
-        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'cerrada_historial', 'cancelada'], true)) {
+        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'rechazada_sancion', 'cerrada_historial', 'cancelada'], true)) {
             $base->where('estado', $estado);
         }
 
@@ -410,7 +421,7 @@ class DirectorRegionalController extends Controller
             $base->where('consultorio_id', (int) $consultorioId);
         }
 
-        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'cerrada_historial', 'cancelada'], true)) {
+        if ($estado && in_array($estado, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'rechazada_sancion', 'cerrada_historial', 'cancelada'], true)) {
             $base->where('estado', $estado);
         }
 
@@ -497,11 +508,19 @@ class DirectorRegionalController extends Controller
         $regionId = $this->regionId($request);
         $region = Region::findOrFail($regionId);
 
-        if ($request->user()->rol !== 'jefe_ucoe' && $region->codigo !== 'BI' && $request->user()->rol !== 'administrador') {
-            abort(403, 'El submódulo de revisión colegiada es exclusivo de la Jefatura de UCOE en la Región del Biobío.');
+        $esRevisor = in_array($request->user()->rol, ['jefe_ucoe', 'administrador'], true)
+            || ($request->user()->rol === 'secretaria' && $region->codigo === 'BI');
+        if (! $esRevisor || $region->codigo !== 'BI') {
+            abort(403, 'El submódulo de revisión colegiada es exclusivo de la Jefatura y Revisores de UCOE en la Región del Biobío.');
         }
 
         $revisorFiltro = $request->query('revisor'); // 'todos', 'luis', 'veronica', 'graciela', 'sin_asignar'
+        $nomUser = mb_strtolower($request->user()->nombre_completo);
+        $esRevisorEspecifico = str_contains($nomUser, 'cifuentes') || str_contains($nomUser, 'paredes');
+        if (! $request->has('revisor') && $esRevisorEspecifico) {
+            $revisorFiltro = str_contains($nomUser, 'cifuentes') ? 'veronica' : 'graciela';
+        }
+
         $q = trim((string) $request->query('q'));
 
         $revisores = [
@@ -524,9 +543,15 @@ class DirectorRegionalController extends Controller
 
         if ($revisorFiltro && $revisorFiltro !== 'todos') {
             if ($revisorFiltro === 'sin_asignar') {
-                $base->whereNull('revisor_colegiado_nombre');
+                $base->whereNull('revisor_colegiado_id')->whereNull('revisor_colegiado_nombre');
             } else {
-                $base->where('revisor_colegiado_nombre', 'like', "%$revisorFiltro%");
+                $base->where(function ($w) use ($revisorFiltro) {
+                    $w->where('revisor_colegiado_nombre', 'like', "%$revisorFiltro%")
+                      ->orWhereHas('revisorColegiado', function ($u) use ($revisorFiltro) {
+                          $u->where('nombre', 'like', "%$revisorFiltro%")
+                            ->orWhere('apellido', 'like', "%$revisorFiltro%");
+                      });
+                });
             }
         }
 
@@ -542,6 +567,33 @@ class DirectorRegionalController extends Controller
     }
 
     /**
+     * Resuelve el modelo Usuario asociado a un revisor colegiado por nombre institucional.
+     */
+    private function buscarRevisorUsuario(string $nombre): ?Usuario
+    {
+        $nom = mb_strtolower($nombre);
+        if (str_contains($nom, 'luis') || str_contains($nom, 'núñez') || str_contains($nom, 'nunez')) {
+            return Usuario::where('email', 'ucoe_biobio@cajbiobio.cl')
+                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Luis%')->where('apellido', 'like', '%Núñez%'))
+                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Luis%')->where('apellido', 'like', '%Nunez%'))
+                ->first();
+        }
+        if (str_contains($nom, 'verónica') || str_contains($nom, 'veronica') || str_contains($nom, 'cifuentes')) {
+            return Usuario::where('email', 'revisora_veronica@cajbiobio.cl')
+                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Verónica%')->where('apellido', 'like', '%Cifuentes%'))
+                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Veronica%')->where('apellido', 'like', '%Cifuentes%'))
+                ->first();
+        }
+        if (str_contains($nom, 'graciela') || str_contains($nom, 'paredes')) {
+            return Usuario::where('email', 'revisora_graciela@cajbiobio.cl')
+                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Graciela%')->where('apellido', 'like', '%Paredes%'))
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
      * Asigna un revisor colegiado a una práctica en UCOE.
      */
     public function asignarRevisor(Request $request, int $id)
@@ -549,20 +601,37 @@ class DirectorRegionalController extends Controller
         $this->autorizar($request);
         $regionId = $this->regionId($request);
 
-        $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $regionId))->findOrFail($id);
+        $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $regionId))
+            ->with('practicante.postulante')
+            ->findOrFail($id);
 
         $datos = $request->validate([
             'revisor' => ['required', 'string', 'in:Luis Núñez Oviedo,Verónica Cifuentes,Graciela Paredes'],
         ]);
 
+        $revisorUsuario = $this->buscarRevisorUsuario($datos['revisor']);
+
         $p->update([
+            'revisor_colegiado_id' => $revisorUsuario?->id,
             'revisor_colegiado_nombre' => $datos['revisor'],
         ]);
 
         Auditoria::registrar('ucoe.asignar_revisor', 'practica', $p->id, [
             'revisor' => $datos['revisor'],
+            'revisor_id' => $revisorUsuario?->id,
             'asignado_por' => $request->user()->id,
         ], $request->user()->id);
+
+        if ($revisorUsuario) {
+            Notificaciones::crear(
+                $revisorUsuario->id,
+                'aviso',
+                'Expediente asignado para revisión colegiada UCOE',
+                "Se le ha asignado la práctica de {$p->practicante->postulante->nombre_completo} para revisión colegiada.",
+                'practica',
+                $p->id
+            );
+        }
 
         return back()->with('ok', "Expediente asignado exitosamente al revisor {$datos['revisor']}.");
     }
@@ -581,17 +650,32 @@ class DirectorRegionalController extends Controller
             'revisor' => ['required', 'string', 'in:Luis Núñez Oviedo,Verónica Cifuentes,Graciela Paredes'],
         ]);
 
+        $revisorUsuario = $this->buscarRevisorUsuario($datos['revisor']);
+
         $afectadas = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $regionId))
             ->whereIn('id', $datos['practicas'])
             ->update([
+                'revisor_colegiado_id' => $revisorUsuario?->id,
                 'revisor_colegiado_nombre' => $datos['revisor'],
             ]);
 
         Auditoria::registrar('ucoe.asignar_revisores_lote', 'practica', null, [
             'revisor' => $datos['revisor'],
+            'revisor_id' => $revisorUsuario?->id,
             'cantidad' => $afectadas,
             'asignado_por' => $request->user()->id,
         ], $request->user()->id);
+
+        if ($revisorUsuario && $afectadas > 0) {
+            Notificaciones::crear(
+                $revisorUsuario->id,
+                'aviso',
+                'Lote de expedientes asignados para revisión colegiada UCOE',
+                "Se le ha asignado un lote de {$afectadas} expedientes para revisión colegiada en la Octava Región.",
+                'practica',
+                null
+            );
+        }
 
         return back()->with('ok', "Se asignaron {$afectadas} expedientes a {$datos['revisor']} correctamente.");
     }

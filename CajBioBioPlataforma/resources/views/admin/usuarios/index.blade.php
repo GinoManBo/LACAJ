@@ -9,7 +9,6 @@
         'jefe_ucoe' => 'Jefe/a UCOE',
         'director_general' => 'Director/a General',
         'abogado' => 'Abogado tutor',
-        'gobernador' => 'Gobernador',
         'practicante' => 'Postulante',
         'postulante' => 'Postulante',
     ];
@@ -78,7 +77,19 @@
                     </div>
                 </td>
                 <td>{{ $etRol[$u->rol] ?? $u->rol }}</td>
-                <td>{{ $u->region?->nombre ?? ($u->abogado?->area ? ucfirst($u->abogado->area) : '—') }}</td>
+                <td>
+                    @if ($u->region)
+                        {{ $u->region->nombre }}
+                    @elseif ($u->abogado?->es_segunda_instancia)
+                        2ª Instancia ({{ $u->abogado->region?->nombre ?? 'Regional' }})
+                    @elseif ($u->abogado && $u->abogado->consultorios->isNotEmpty())
+                        {{ $u->abogado->consultorios->pluck('nombre')->take(2)->join(', ') }}
+                    @elseif ($u->abogado?->area)
+                        {{ ucfirst($u->abogado->area) }}
+                    @else
+                        —
+                    @endif
+                </td>
                 <td class="nowrap">{{ $u->ultimo_acceso ? \Illuminate\Support\Carbon::parse($u->ultimo_acceso)->format('d/m/Y H:i') : 'Sin ingresos' }}</td>
                 <td>@if ($u->activo)<x-badge estado="activa" texto="Activo" />@else<x-badge estado="finalizada" texto="Inactivo" />@endif</td>
                 <td>

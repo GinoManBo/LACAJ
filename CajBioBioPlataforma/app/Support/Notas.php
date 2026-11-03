@@ -142,6 +142,21 @@ final class Notas
         return in_array($c, ['SOBRESALIENTE', 'MUY BUENA', 'MUY_BUENA', 'MUY BUENO', 'BUENA', 'BUENO', 'REGULAR', 'SUFICIENTE'], true);
     }
 
+    /**
+     * Determina si una calificación (número o concepto) es aprobatoria (>= 4.0 o concepto aprobatorio).
+     */
+    public static function esAprobatoria(float|int|string|null $nota): bool
+    {
+        if ($nota === null) {
+            return false;
+        }
+        if (is_numeric($nota)) {
+            return (float) $nota >= self::MINIMA_APROBACION;
+        }
+
+        return self::esAprobatorio((string) $nota);
+    }
+
     /** @param array<string,float|int|string> $puntajes */
     public static function promedio(array $puntajes): float
     {

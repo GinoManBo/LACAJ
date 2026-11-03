@@ -28,17 +28,26 @@ class UsuariosAdmin
         $temporal = self::passwordTemporal();
 
         $usuario = DB::transaction(function () use ($d, $creadoPor, $temporal) {
+            $rolesConRegion = ['secretaria', 'director_regional', 'jefe_ucoe'];
+            $esSegunda = $d['rol'] === 'abogado' && ! empty($d['es_segunda_instancia']);
+            $regionId = in_array($d['rol'], $rolesConRegion, true) || $esSegunda ? ($d['region_id'] ?? null) : null;
+
             $u = Usuario::create([
                 'nombre' => $d['nombre'], 'apellido' => $d['apellido'],
                 'email' => Str::lower($d['email']),
                 'rut' => ! empty($d['rut']) ? Rut::normalizar($d['rut']) : null,
                 'rol' => $d['rol'],
-                'region_id' => $d['rol'] === 'secretaria' ? $d['region_id'] : null,
+                'region_id' => $regionId,
                 'password' => $temporal, 'debe_cambiar_password' => true, 'activo' => true,
                 'creado_por' => $creadoPor,
             ]);
             if ($d['rol'] === 'abogado') {
-                $a = Abogado::create(['usuario_id' => $u->id, 'area' => $d['area']]);
+                $a = Abogado::create([
+                    'usuario_id' => $u->id,
+                    'area' => $d['area'] ?? null,
+                    'es_segunda_instancia' => $esSegunda,
+                    'region_id' => $esSegunda ? $regionId : null,
+                ]);
                 $a->consultorios()->sync($d['consultorios'] ?? []);
             }
             Auditoria::registrar('usuario.crear', 'usuario', $u->id, ['rol' => $d['rol'], 'email' => $u->email], $creadoPor);
@@ -56,15 +65,27 @@ class UsuariosAdmin
         }
 
         DB::transaction(function () use ($u, $d, $editorId) {
+            $rolesConRegion = ['secretaria', 'director_regional', 'jefe_ucoe'];
+            $esSegunda = $d['rol'] === 'abogado' && ! empty($d['es_segunda_instancia']);
+            $regionId = in_array($d['rol'], $rolesConRegion, true) || $esSegunda ? ($d['region_id'] ?? null) : null;
+
             $u->update([
                 'nombre' => $d['nombre'], 'apellido' => $d['apellido'], 'email' => Str::lower($d['email']),
                 'rut' => ! empty($d['rut']) ? Rut::normalizar($d['rut']) : null,
                 'rol' => $d['rol'],
-                'region_id' => $d['rol'] === 'secretaria' ? $d['region_id'] : null,
+                'region_id' => $regionId,
             ]);
 
             if ($d['rol'] === 'abogado') {
-                $a = Abogado::updateOrCreate(['usuario_id' => $u->id], ['area' => $d['area'], 'activo' => true]);
+                $a = Abogado::updateOrCreate(
+                    ['usuario_id' => $u->id],
+                    [
+                        'area' => $d['area'] ?? null,
+                        'es_segunda_instancia' => $esSegunda,
+                        'region_id' => $esSegunda ? $regionId : null,
+                        'activo' => true,
+                    ]
+                );
                 $a->consultorios()->sync($d['consultorios'] ?? []);
             } elseif ($a = $u->abogado) {
                 $a->update(['activo' => false]);

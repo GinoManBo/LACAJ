@@ -18,7 +18,7 @@ class PracticanteController extends Controller
     private function practica(Request $request): ?Practica
     {
         return Practica::where('practicante_id', Scope::practicanteId($request->user()))
-            ->with(['consultorio.comuna', 'abogado.usuario', 'evaluacion', 'calificaciones', 'practicante.postulante'])
+            ->with(['consultorio.comuna', 'abogado.usuario', 'evaluacion', 'calificaciones', 'practicante.postulante', 'certificadoFirmagob'])
             ->latest('id')->first();
     }
 
@@ -81,6 +81,17 @@ class PracticanteController extends Controller
     public function certificado(Request $request)
     {
         $p = $this->documentable($request);
+
+        if ($p->certificado_firmagob_id && $p->certificadoFirmagob && Almacenamiento::existe($p->certificadoFirmagob->nombre_almacenado)) {
+            Auditoria::registrar('practica.descarga_certificado', 'practica', $p->id);
+            $nombre = 'Certificado Corte Suprema-'.$this->nombreArchivo($p).'.pdf';
+
+            return response()->file(Almacenamiento::ruta($p->certificadoFirmagob->nombre_almacenado), [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.addcslashes($nombre, '"\\').'"',
+            ]);
+        }
+
         $pdf = CertificadosPractica::pdfCertificado($p, $request->user());
         Auditoria::registrar('practica.descarga_certificado', 'practica', $p->id);
 
