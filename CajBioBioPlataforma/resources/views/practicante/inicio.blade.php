@@ -8,13 +8,23 @@
         texto="Cuando la secretaría regional confirme su práctica, aquí verá su consultorio, abogado tutor, calificaciones y documentos." />
 @else
 @php
-    $etiquetasEstado = ['por_iniciar' => 'Por iniciar', 'activa' => 'En curso', 'por_terminar' => 'Por terminar', 'finalizada' => 'Finalizada', 'cancelada' => 'Cancelada'];
+    $etiquetasEstado = [
+        'por_iniciar' => 'Por iniciar',
+        'activa' => 'En curso',
+        'por_terminar' => 'Por terminar',
+        'finalizada' => 'Finalizada',
+        'cancelada' => 'Cancelada',
+        'remitida_biobio' => 'Remitida a Jurídica Central',
+        'nivelada_biobio' => 'Nivelada por Jurídica',
+        'rechazada_sancion' => 'Rechazada por sanción',
+        'cerrada_historial' => 'Expediente cerrado / Historial',
+    ];
     $fmt = fn ($f) => $f?->locale('es')->translatedFormat('j \d\e F \d\e Y');
-    $n1 = fn ($n) => number_format((float) $n, 1, ',', '');
-    $n2 = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, ',', ''), '0'), ',');
     $total = max(1, $practica->fecha_inicio->diffInDays($practica->fecha_termino));
     $avance = max(0, min(100, round(now()->startOfDay()->diffInDays($practica->fecha_inicio->copy()->startOfDay(), false) * -100 / $total)));
-    if ($practica->estado === 'finalizada') $avance = 100;
+    if (in_array($practica->estado, ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true)) {
+        $avance = 100;
+    }
     $ordinal = [1 => '1ª calificación', 2 => '2ª calificación', 3 => '3ª calificación'];
 @endphp
 
@@ -45,7 +55,7 @@
                     <div>{{ $ordinal[$c['instancia']] }}
                         <small>{{ $c['obligatoria'] ? 'Obligatoria' : 'Opcional' }}</small></div>
                     @if ($c['nota'] !== null)
-                        <span class="tp-nota-valor">{{ $n1($c['nota']) }}</span>
+                        <span class="tp-nota-valor">{{ \App\Support\Notas::concepto($c['nota']) }}</span>
                     @else
                         <span class="tp-nota-vacia">{{ $c['obligatoria'] ? 'Pendiente — obligatoria' : 'Sin nota' }}</span>
                     @endif
@@ -53,8 +63,8 @@
             @endforeach
         </ul>
         <div class="tp-totales">
-            <x-indicador :valor="$notaPractica !== null ? $n1($notaPractica) : '—'" etiqueta="Nota de la práctica" :detalle="$notaPractica === null ? 'Se calcula cuando su tutor evalúa' : null" />
-            <x-indicador :valor="$notaPromedio !== null ? $n2($notaPromedio) : '—'" etiqueta="Promedio" :detalle="$notaPromedio === null ? 'Aún sin calificaciones' : null" />
+            <x-indicador :valor="$notaPractica !== null ? \App\Support\Notas::concepto($notaPractica) : '—'" etiqueta="Calificación institucional" :detalle="$notaPractica === null ? 'Se calcula cuando su tutor evalúa' : null" />
+            <x-indicador :valor="$notaPromedio !== null ? \App\Support\Notas::concepto($notaPromedio) : '—'" etiqueta="Promedio de instancias" :detalle="$notaPromedio === null ? 'Aún sin calificaciones' : null" />
         </div>
         @if ($conceptos)
             <h3 style="margin:1.5rem 0 0;font-size:1.05rem">Conceptos de la evaluación del tutor</h3>

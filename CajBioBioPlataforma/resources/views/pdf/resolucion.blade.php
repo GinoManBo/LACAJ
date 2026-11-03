@@ -51,7 +51,7 @@
 
   <div class="pagina salto">
     <div class="rotulo">RESUELVO:</div>
-    <p><b>1° APRUÉBASE</b> práctica profesional de {{ $de }} <b>{{ $nombreLegal }},</b> cédula de identidad <b>RUT N.º {{ $rut }},</b> con los siguientes conceptos:</p>
+    <p><b>1° APRUÉBASE</b> práctica profesional de {{ $de }} <b>{{ $nombreLegal }},</b> cédula de identidad <b>RUT N.º {{ $rut }},</b> con calificación final institucional en concepto de <b>{{ mb_strtoupper(\App\Support\Notas::concepto($practica->nota_practica ?? $evaluacion?->promedio)) }}</b>, conforme al siguiente detalle reglamentario por criterio:</p>
 
     <table class="conceptos">
       @foreach ($criterios as $clave => $etiqueta)
@@ -62,6 +62,20 @@
         </tr>
       @endforeach
     </table>
+
+    @if ($practica->nivelada_at)
+      <p style="text-indent: 0; line-height: 1.6; margin: 4mm 0 6mm;">
+        <b>Constancia de Nivelación Institucional:</b> Calificación final nivelada de oficio por la Secretaría Jurídica Central con fecha {{ $practica->nivelada_at->format('d/m/Y') }}, asignando el concepto reglamentario final de <b>{{ mb_strtoupper(\App\Support\Notas::concepto($practica->nota_practica)) }}</b>.
+        @if ($practica->justificacion_nivelacion)
+          <br><em>Fundamento normativo:</em> {{ $practica->justificacion_nivelacion }}
+        @endif
+      </p>
+    @elseif ($practica->validada_director_at && $practica->observaciones_director)
+      <p style="text-indent: 0; line-height: 1.6; margin: 4mm 0 6mm;">
+        <b>Constancia de Revisión Dirección Regional:</b> Calificación final revisada y ajustada por la Dirección Regional con fecha {{ $practica->validada_director_at->format('d/m/Y') }}, asignando el concepto reglamentario final de <b>{{ mb_strtoupper(\App\Support\Notas::concepto($practica->nota_practica)) }}</b>.
+        <br><em>Observaciones:</em> {{ $practica->observaciones_director }}
+      </p>
+    @endif
 
     <p><b>2° EXPÍDASE</b> el informe de calificación de la práctica profesional aludida y el certificado de aprobación de la misma, en conformidad a las disposiciones legales y administrativas vigentes.</p>
 

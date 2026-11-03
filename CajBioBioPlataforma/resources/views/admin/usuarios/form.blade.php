@@ -1,10 +1,21 @@
 @php
     $editando = $usuario->exists;
-    $etRol = ['administrador' => 'Administrador', 'secretaria' => 'Secretaría regional', 'abogado' => 'Abogado tutor', 'practicante' => 'Postulante', 'postulante' => 'Postulante', 'gobernador' => 'Gobernador regional'];
-    $etArea = ['civil' => 'Civil', 'penal' => 'Penal', 'laboral' => 'Laboral', 'familia' => 'Familia'];
+    $etRol = [
+        'administrador' => 'Administrador',
+        'secretaria' => 'Secretaría regional',
+        'juridica_central' => 'Jurídica Central Biobío',
+        'director_regional' => 'Director/a Regional',
+        'jefe_ucoe' => 'Jefe/a de UCOE Biobío',
+        'director_general' => 'Director/a General',
+        'abogado' => 'Abogado tutor',
+        'practicante' => 'Postulante',
+        'postulante' => 'Postulante',
+    ];
     $rolActual = old('rol', $usuario->rol ?: 'secretaria');
     $propio = $editando && $usuario->id === Auth::id();
     $seleccion = collect(old('consultorios', $editando ? ($usuario->abogado?->consultorios->pluck('id')->all() ?? []) : []))->map(fn ($i) => (int) $i)->all();
+    $esSegundaActual = (bool) old('es_segunda_instancia', $usuario->abogado?->es_segunda_instancia);
+    $regionActual = old('region_id', $usuario->region_id ?? $usuario->abogado?->region_id);
     $titulo = $editando ? 'Editar usuario' : 'Nuevo usuario';
 @endphp
 @extends('layouts.portal', ['migas' => [['Administración', route('admin.inicio')], ['Usuarios', route('admin.usuarios.index')], [$titulo]]])
@@ -37,11 +48,17 @@
             <div>
                 <x-campo name="rol" label="Rol" :opciones="collect($roles)->mapWithKeys(fn ($r) => [$r => $etRol[$r] ?? $r])->all()" :value="$rolActual" obligatorio placeholder="Selecciona un rol" ayuda="{{ $propio ? 'No puedes cambiar tu propio rol.' : '' }}" />
             </div>
-            <div data-solo-rol="secretaria" @if ($rolActual !== 'secretaria') hidden @endif>
-                <x-campo name="region_id" label="Región" :opciones="$regiones->pluck('nombre', 'id')->all()" :value="$usuario->region_id" placeholder="Selecciona una región" ayuda="Obligatoria para secretaría: solo verá esta región." />
+            <div id="bloque-region" @if (!in_array($rolActual, ['secretaria', 'director_regional', 'jefe_ucoe'], true) && !($rolActual === 'abogado' && $esSegundaActual)) hidden @endif>
+                <x-campo name="region_id" label="Región" :opciones="$regiones->pluck('nombre', 'id')->all()" :value="$regionActual" placeholder="Selecciona una región" ayuda="Obligatoria para directores, jefaturas UCOE, secretarías y abogados de 2ª instancia." />
             </div>
             <div data-solo-rol="abogado" @if ($rolActual !== 'abogado') hidden @endif>
-                <x-campo name="area" label="Área" :opciones="$etArea" :value="$usuario->abogado?->area" placeholder="Selecciona un área" ayuda="Obligatoria para abogado tutor." />
+                <div style="margin-top:0.25rem;">
+                    <label class="check" style="display:flex; align-items:center; gap:0.5rem;">
+                        <input type="checkbox" name="es_segunda_instancia" id="campo-es-segunda-instancia" value="1" @checked($esSegundaActual)>
+                        <span><strong>Abogado Jefe de 2ª Instancia</strong> (Corte de Apelaciones)</span>
+                    </label>
+                    <p class="campo-ayuda" style="margin:0.25rem 0 0;">Si se activa, el abogado calificará alegatos regionales de 2ª instancia y se le asignará la región seleccionada.</p>
+                </div>
             </div>
         </div>
 
@@ -66,14 +83,42 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const rol = document.getElementById('campo-rol');
+    const chkSegunda = document.getElementById('campo-es-segunda-instancia');
+    const bloqueRegion = document.getElementById('bloque-region');
+    const selectRegion = bloqueRegion ? bloqueRegion.querySelector('select') : null;
+
     const aplicar = () => {
+        const rolVal = rol ? rol.value : '';
+        const esSegunda = chkSegunda && chkSegunda.checked;
+
         document.querySelectorAll('[data-solo-rol]').forEach((b) => {
-            const visible = b.dataset.soloRol === rol.value;
+            const roles = b.dataset.soloRol.split(',').map(s => s.trim());
+            const visible = roles.includes(rolVal);
             b.hidden = !visible;
-            b.querySelectorAll('select, input').forEach((s) => { s.disabled = !visible; if (s.tagName === 'SELECT') s.required = visible; });
+            b.querySelectorAll('select, input').forEach((s) => {
+                if (s === chkSegunda) {
+                    s.disabled = !visible;
+                } else {
+                    s.disabled = !visible;
+                    if (s.tagName === 'SELECT') s.required = visible;
+                }
+            });
         });
+
+        // Manejo específico del selector de región
+        const rolesConRegion = ['secretaria', 'director_regional', 'jefe_ucoe'];
+        const requiereRegion = rolesConRegion.includes(rolVal) || (rolVal === 'abogado' && esSegunda);
+
+        if (bloqueRegion && selectRegion) {
+            bloqueRegion.hidden = !requiereRegion;
+            selectRegion.disabled = !requiereRegion;
+            selectRegion.required = requiereRegion;
+        }
     };
-    rol.addEventListener('change', aplicar); aplicar();
+
+    if (rol) rol.addEventListener('change', aplicar);
+    if (chkSegunda) chkSegunda.addEventListener('change', aplicar);
+    aplicar();
 });
 </script>
 @endsection

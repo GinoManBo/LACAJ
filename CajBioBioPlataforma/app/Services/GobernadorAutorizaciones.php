@@ -14,7 +14,9 @@ class GobernadorAutorizaciones
     {
         return Practica::query()
             ->where('documentos_autorizados', false)
-            ->where('estado', '!=', 'cancelada')
+            ->whereIn('estado', ['remitida_biobio', 'nivelada_biobio', 'cerrada_historial'])
+            ->whereNotNull('validada_director_at')
+            ->whereNotNull('firmado_director_general_at')
             ->whereHas('evaluacion', fn ($q) => $q->where('aprobado', true));
     }
 
@@ -34,6 +36,15 @@ class GobernadorAutorizaciones
             }
             if (! $p->evaluacion?->aprobado) {
                 throw ValidationException::withMessages(['practica' => 'Esta práctica aún no tiene una evaluación aprobada por el abogado tutor.']);
+            }
+            if (! $p->validada_director_at) {
+                throw ValidationException::withMessages(['practica' => 'Esta práctica no cuenta con la validación de la Dirección Regional.']);
+            }
+            if (! in_array($p->estado, ['remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true)) {
+                throw ValidationException::withMessages(['practica' => 'Esta práctica aún no ha sido revisada por la Secretaría Jurídica Central.']);
+            }
+            if (! $p->firmado_director_general_at) {
+                throw ValidationException::withMessages(['practica' => 'Esta práctica debe estar firmada previamente con FirmaGob por el Director General.']);
             }
             if ($p->documentos_autorizados) {
                 throw ValidationException::withMessages(['practica' => 'Los documentos de esta práctica ya fueron autorizados.']);

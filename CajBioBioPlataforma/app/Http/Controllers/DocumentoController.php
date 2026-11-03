@@ -42,9 +42,9 @@ class DocumentoController extends Controller
         $regionDoc = $d->postulacion?->region_id ?? $practica?->consultorio?->region_id;
 
         return match ($u->rol) {
-            'administrador' => true,
-            'secretaria' => $u->region_id !== null && $regionDoc === $u->region_id,
-            'abogado' => $u->abogado && $practica && $practica->abogado_id === $u->abogado->id,
+            'administrador', 'director_general', 'juridica_central' => true,
+            'secretaria', 'director_regional', 'jefe_ucoe' => $u->region_id !== null && $regionDoc === $u->region_id,
+            'abogado' => $u->abogado && $practica && ($practica->abogado_id === $u->abogado->id || ($u->abogado->es_segunda_instancia && $regionDoc === $u->abogado->region_id)),
             'practicante', 'postulante' => $this->esDelPracticanteOPostulante($u, $d, $practica),
             default => false,
         };
@@ -74,7 +74,7 @@ class DocumentoController extends Controller
         }
 
         if (in_array($d->tipo, ['certificado_corte_suprema', 'resolucion'], true)) {
-            return $practica && $practica->estado === 'finalizada' && $practica->documentos_autorizados;
+            return $practica && in_array($practica->estado, ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true) && $practica->documentos_autorizados;
         }
 
         return true;

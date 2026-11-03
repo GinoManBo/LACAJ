@@ -20,6 +20,10 @@
                     Cerrar Competencia Regional y Remitir a Jurídica Biobío
                 </x-boton>
             </form>
+        @elseif (! empty($faltaVisacionDirector))
+            <span class="sec-tag sec-tag-pendiente" style="padding:.5rem .75rem;font-size:.85rem;">
+                Pendiente de Visación por Dirección Regional / Jefatura UCOE
+            </span>
         @endif
         <x-boton tipo="secundario" :href="route('secretaria.historial')">@include('secretaria._icono', ['n' => 'volver']) Volver al historial</x-boton>
     </div>
@@ -38,6 +42,42 @@
             @elseif ($practica->estado === 'cerrada_historial')
                 <div style="margin-top:.35rem;font-size:.85rem;color:var(--azul-900);font-weight:600;">Expediente cerrado y despachado formalmente al postulante por Jurídica Biobío{{ $practica->despachada_at ? ' el '.$practica->despachada_at->format('d-m-Y') : '' }}.</div>
             @endif
+        </div>
+    </div>
+@endif
+
+@php
+    $estaAprobadaHist = $practica->nota_practica !== null
+        ? \App\Support\Notas::esAprobatoria($practica->nota_practica)
+        : ($evaluacion && $evaluacion->aprobado);
+    $puedeDescargarHist = $evaluacion && $estaAprobadaHist
+        && ! in_array($practica->estado, ['cancelada', 'rechazada_sancion'], true)
+        && ($practica->documentos_autorizados || $practica->estado === 'cerrada_historial' || $practica->firmado_director_general_at);
+@endphp
+
+@if ($puedeDescargarHist)
+    <div class="tarjeta" style="margin-bottom:1.5rem;padding:1.25rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+            <div>
+                <strong style="color:#166534;font-size:1rem;">Expediente y Documentación Oficial de Término</strong>
+                <p style="margin:.25rem 0 0;font-size:.88rem;color:#15803d;">
+                    Certificados oficiales disponibles. Puede descargar copias para remisión personal o entrega directa al interesado.
+                </p>
+            </div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                <x-boton tipo="secundario" tam="sm" :href="route('secretaria.historial.certificado', $practica->id)" target="_blank">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.25rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Descargar Certificado
+                </x-boton>
+                <x-boton tipo="secundario" tam="sm" :href="route('secretaria.historial.resolucion', $practica->id)" target="_blank">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.25rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Descargar Resolución
+                </x-boton>
+                <x-boton tipo="primario" tam="sm" :href="route('secretaria.historial.expediente', $practica->id)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Descargar Expediente (ZIP)
+                </x-boton>
+            </div>
         </div>
     </div>
 @endif

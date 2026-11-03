@@ -11,7 +11,16 @@ use Illuminate\Validation\ValidationException;
 class PracticasAdmin
 {
     public const MOTIVOS_CANCELACION = ['conducta', 'decision', 'error_registro', 'otro'];
-    public const ESTADOS_EDITABLES = ['por_iniciar', 'activa', 'finalizada', 'cancelada'];
+    public const ESTADOS_EDITABLES = [
+        'por_iniciar',
+        'activa',
+        'finalizada',
+        'remitida_biobio',
+        'nivelada_biobio',
+        'rechazada_sancion',
+        'cerrada_historial',
+        'cancelada',
+    ];
 
     public static function actualizar(Practica $p, array $d, int $actorId): Practica
     {

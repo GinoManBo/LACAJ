@@ -9,11 +9,11 @@ final class Scope
 {
     public static function regionId(Usuario $u): ?int
     {
-        // Administrador y Jurídica Central (Biobío Concepción) tienen alcance nacional/central
-        if ($u->rol === 'administrador' || $u->rol === 'juridica_central') {
+        // Administrador, Director General y Jurídica Central (Biobío Concepción) tienen alcance nacional/central
+        if ($u->rol === 'administrador' || $u->rol === 'juridica_central' || $u->rol === 'director_general') {
             return null;
         }
-        if ($u->rol === 'secretaria' && $u->region_id) {
+        if (in_array($u->rol, ['secretaria', 'director_regional', 'jefe_ucoe'], true) && $u->region_id) {
             return $u->region_id;
         }
         abort(403, 'Sin región asignada.');

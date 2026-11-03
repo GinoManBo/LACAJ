@@ -49,15 +49,32 @@ class UsuariosDemoSeeder extends Seeder
             ['Pamela', 'Fuentes Almonacid', 'secretaria_aysen@cajbiobio.cl', '10000015-6', 'secretaria', $regiones['AI'] ?? null, null],
 
             // Abogados Jefes de 1ª Instancia (Consultorios)
-            ['Carlos', 'Muñoz Sepúlveda', 'abogado1@cajbiobio.cl', '10000004-0', 'abogado', null, 'civil', false],
-            ['Andrea', 'Rojas Fuentes', 'abogado2@cajbiobio.cl', '10000005-9', 'abogado', null, 'penal', false],
+            ['Carlos', 'Muñoz Sepúlveda', 'abogado1@cajbiobio.cl', '10000004-0', 'abogado', null, null, false],
+            ['Andrea', 'Rojas Fuentes', 'abogado2@cajbiobio.cl', '10000005-9', 'abogado', null, null, false],
 
             // Abogado Jefe de 2ª Instancia (Corte de Apelaciones Concepción - Región del Biobío)
             // Estructura flexible: cada región puede contar con uno o más abogados jefes de 2ª instancia
-            ['Mauricio', 'Vergara Toledo', 'corte_biobio@cajbiobio.cl', '10000016-4', 'abogado', $regiones['BI'] ?? null, 'corte', true],
+            ['Mauricio', 'Vergara Toledo', 'corte_biobio@cajbiobio.cl', '10000016-4', 'abogado', $regiones['BI'] ?? null, null, true],
 
             // Gobernador Regional
             ['Rodrigo', 'Díaz Wörner', 'gobernador@cajbiobio.cl', '10000006-7', 'gobernador', null, null, false],
+
+            // Dirección General (Sede Central Concepción - Potestad Nacional y FirmaGob)
+            ['Mauricio', 'Decap Fernández', 'director_general@cajbiobio.cl', '10000020-2', 'director_general', null, null, false],
+
+            // Jefatura de la Unidad de Consultorios y Oficinas Especializadas (UCOE) (Región del Biobío - don Luis Núñez Oviedo)
+            ['Luis', 'Núñez Oviedo', 'ucoe_biobio@cajbiobio.cl', '10000021-0', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
+
+            // Revisores Colegiados de UCOE (Octava Región)
+            ['Verónica', 'Cifuentes Matus', 'revisora_veronica@cajbiobio.cl', '10000027-8', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
+            ['Graciela', 'Paredes Saavedra', 'revisora_graciela@cajbiobio.cl', '10000028-6', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
+
+            // Directores Regionales (Regiones Externas)
+            ['Ricardo', 'Salazar Valenzuela', 'director_nuble@cajbiobio.cl', '10000022-9', 'director_regional', $regiones['NB'] ?? null, null, false],
+            ['Alejandro', 'Viñuela Hiriart', 'director_araucania@cajbiobio.cl', '10000023-7', 'director_regional', $regiones['AR'] ?? null, null, false],
+            ['María Cristina', 'Valdés Silva', 'director_losrios@cajbiobio.cl', '10000024-5', 'director_regional', $regiones['LR'] ?? null, null, false],
+            ['Consuelo', 'Bellido Almonacid', 'director_loslagos@cajbiobio.cl', '10000025-3', 'director_regional', $regiones['LL'] ?? null, null, false],
+            ['Rodrigo', 'Morales Henríquez', 'director_aysen@cajbiobio.cl', '10000026-1', 'director_regional', $regiones['AI'] ?? null, null, false],
         ];
 
         foreach ($cuentas as $fila) {
@@ -70,9 +87,9 @@ class UsuariosDemoSeeder extends Seeder
                 'debe_cambiar_password' => false, 'activo' => true,
                 'intentos_fallidos' => 0, 'bloqueado_hasta' => null,
             ]);
-            if ($area) {
+            if ($rol === 'abogado') {
                 Abogado::updateOrCreate(['usuario_id' => $u->id], [
-                    'area' => $area,
+                    'area' => null,
                     'es_segunda_instancia' => (bool) $esSegundaInstancia,
                     'region_id' => $esSegundaInstancia ? $regionId : null,
                 ]);

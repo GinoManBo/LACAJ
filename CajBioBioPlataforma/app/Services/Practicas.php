@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 class Practicas
 {
     public const MOTIVOS_CANCELACION = ['conducta' => 'Conducta del postulante', 'decision' => 'Decisión del postulante', 'otro' => 'Otro motivo'];
-    public const DIAS_POR_TERMINAR = 30;
+    public const DIAS_POR_TERMINAR = 14;
 
     /** @return array{total:int, transcurridos:int, restantes:int, porcentaje:int} */
     public static function estadistica(Practica $p): array
@@ -64,7 +64,7 @@ class Practicas
 
     public static function nivelDisponibilidad(int $capacidad, int $libres): string
     {
-        if ($libres <= 0) {
+        if ($libres <= 0 || $capacidad <= 0) {
             return 'sin';
         }
 

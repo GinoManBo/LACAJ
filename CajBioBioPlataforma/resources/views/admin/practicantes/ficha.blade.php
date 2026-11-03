@@ -3,7 +3,16 @@
 @php
     $po = $practica->practicante->postulante;
     $accionable = in_array($practica->estado, ['por_iniciar', 'activa'], true);
-    $etiquetasEstado = ['por_iniciar' => 'Por iniciar', 'activa' => 'En curso', 'finalizada' => 'Finalizada', 'cancelada' => 'Cancelada'];
+    $etiquetasEstado = [
+        'por_iniciar' => 'Por iniciar',
+        'activa' => 'En curso',
+        'finalizada' => 'Finalizada',
+        'remitida_biobio' => 'Remitida a Jurídica Central',
+        'nivelada_biobio' => 'Nivelada en Jurídica',
+        'rechazada_sancion' => 'Rechazada por sanción',
+        'cerrada_historial' => 'Cerrada con FirmaGob',
+        'cancelada' => 'Cancelada',
+    ];
     $etiquetasMotivo = ['conducta' => 'Conducta del postulante', 'decision' => 'Decisión del postulante', 'error_registro' => 'Error de registro', 'otro' => 'Otro motivo'];
     $opcAbogados = $abogados->mapWithKeys(fn ($a) => [$a->id => $a->usuario->nombre.' '.$a->usuario->apellido.' · '.ucfirst($a->area)])->all();
     $opcEstados = collect($estados)->mapWithKeys(fn ($e) => [$e => $etiquetasEstado[$e] ?? $e])->all();

@@ -38,11 +38,28 @@ class CartaPresentacionService
             ? $abogado->nombre.' '.$abogado->apellido
             : ($consultorio->nombre_responsable ?? 'ABOGADO JEFE');
 
-        $emisorNombre = $emisor
-            ? $emisor->nombre.' '.$emisor->apellido
-            : ($inst['director_nombre'] ?? 'LUIS NÚÑEZ OVIEDO');
-
-        $emisorCargo = 'JEFE DE UNIDAD DE CONSULTORIOS Y OFICINAS ESPECIALIZADAS';
+        $esBiobio = $consultorio->region?->codigo === 'BI';
+        if ($esBiobio) {
+            $autoridad = ($emisor && $emisor->rol === 'jefe_ucoe')
+                ? $emisor
+                : Usuario::where('rol', 'jefe_ucoe')->where('activo', true)->first();
+            $emisorNombre = $autoridad
+                ? $autoridad->nombre_completo
+                : ($inst['director_nombre'] ?? 'LUIS NÚÑEZ OVIEDO');
+            $emisorCargo = 'JEFE DE LA UNIDAD DE CONSULTORIOS Y OFICINAS ESPECIALIZADAS (UCOE)';
+        } else {
+            $autoridad = ($emisor && $emisor->rol === 'director_regional' && $emisor->region_id === $consultorio->region_id)
+                ? $emisor
+                : Usuario::where('rol', 'director_regional')
+                    ->where('region_id', $consultorio->region_id)
+                    ->where('activo', true)
+                    ->first();
+            $nomRegion = $consultorio->region?->nombre ?? 'REGIONAL';
+            $emisorNombre = $autoridad
+                ? $autoridad->nombre_completo
+                : 'DIRECTOR REGIONAL';
+            $emisorCargo = 'DIRECTOR REGIONAL DE '.mb_strtoupper($nomRegion);
+        }
 
         $ciudadCorte = match ($consultorio->region?->codigo) {
             'NB' => 'Chillán',

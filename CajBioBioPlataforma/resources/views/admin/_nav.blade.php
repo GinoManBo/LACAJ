@@ -2,8 +2,10 @@
     $items = [
         ['admin.inicio', 'Resumen', ['admin.inicio']],
         ['admin.practicantes.index', 'Postulantes', ['admin.practicantes.*', 'admin.postulantes.*']],
-        ['admin.consultorios.index', 'Consultorios y Sedes', ['admin.consultorios.*', 'admin.capacidad.*']],
-        ['admin.usuarios.index', 'Usuarios', ['admin.usuarios.*']],
+        ['admin.consultorios.index', 'Consultorios y Cupos', ['admin.consultorios.*', 'admin.capacidad.*']],
+        ['admin.usuarios.index', 'Usuarios y Roles', ['admin.usuarios.*']],
+        ['admin.estadisticas.index', 'Métricas Globales', ['admin.estadisticas.*']],
+        ['admin.auditoria.index', 'Log de Auditoría', ['admin.auditoria.*']],
     ];
 @endphp
 <nav class="subnav" aria-label="Secciones de administración">

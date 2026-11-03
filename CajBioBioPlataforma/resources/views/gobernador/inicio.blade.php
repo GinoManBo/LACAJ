@@ -53,7 +53,7 @@
                     <td><strong>{{ $po->nombre }} {{ $po->apellido }}</strong><div class="dato-menor texto-suave">{{ $po->rut }}</div></td>
                     <td>{{ $p->consultorio->nombre }}<div class="dato-menor texto-suave">{{ $p->consultorio->region->nombre }}</div></td>
                     <td>{{ $p->abogado?->usuario ? $p->abogado->usuario->nombre.' '.$p->abogado->usuario->apellido : 'Sin tutor' }}</td>
-                    <td class="nowrap"><strong class="nota">{{ number_format($prom, 1, ',', '') }}</strong> <span class="badge {{ $clasesConcepto($prom) }}">{{ $concepto($prom) }}</span></td>
+                    <td class="nowrap"><span class="badge {{ $clasesConcepto($prom) }}">{{ $concepto($prom) }}</span></td>
                     <td class="nowrap">{{ $p->evaluacion?->created_at?->format('d/m/Y') ?? '—' }}</td>
                     <td><button type="submit" class="btn btn-secundario btn-sm" formaction="{{ route('gobernador.autorizar', $p->id) }}" formnovalidate data-permitir-repetir>Autorizar</button></td>
                 </tr>

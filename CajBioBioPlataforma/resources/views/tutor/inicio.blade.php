@@ -3,7 +3,6 @@
 
 @section('contenido')
 @php
-    $areas = ['civil' => 'Civil', 'penal' => 'Penal', 'laboral' => 'Laboral', 'familia' => 'Familia'];
     $etiquetasEstado = ['por_iniciar' => 'Por iniciar', 'activa' => 'En curso', 'por_terminar' => 'Por terminar', 'finalizada' => 'Finalizada', 'cancelada' => 'Cancelada'];
     $opcionesEstado = collect($estadosFiltro)->mapWithKeys(fn ($e) => [$e => $etiquetasEstado[$e] ?? $e])->all();
     $conFiltros = filled($filtros['q'] ?? null) || filled($filtros['estado'] ?? null);
@@ -17,7 +16,7 @@
             @if ($esSegundaInstancia)
                 Abogado Jefe de Segunda Instancia · Corte de Apelaciones (Región {{ $abogado->region?->nombre ?? 'Regional' }})
             @else
-                Abogado Jefe de Consultorio{{ $abogado?->area ? ' · Área '.($areas[$abogado->area] ?? ucfirst($abogado->area)) : '' }}
+                Abogado Jefe de Consultorio{{ $consultorios->isNotEmpty() ? ' · '.$consultorios->pluck('nombre')->take(2)->join(', ') : '' }}
             @endif
         </p>
     </div>
@@ -59,8 +58,8 @@
                     @foreach ($practicas as $p)
                         @php
                             $pos = $p->practicante->postulante;
-                            $c1 = $p->calificacionPrimeraInstancia();
-                            $c2 = $p->calificacionSegundaInstancia();
+                            $c1 = $p->calificacionPrimeraInstancia;
+                            $c2 = $p->calificacionSegundaInstancia;
                         @endphp
                         <tr data-href="{{ route('tutor.practicantes.ver', $p->id) }}">
                             <td class="tp-persona">
@@ -99,7 +98,7 @@
                         @php
                             $pos = $p->practicante->postulante;
                             $alerta = $p->estado_mostrado === 'por_terminar';
-                            $c1 = $p->calificacionPrimeraInstancia();
+                            $c1 = $p->calificacionPrimeraInstancia;
                         @endphp
                         <tr data-href="{{ route('tutor.practicantes.ver', $p->id) }}" @class(['tp-fila-alerta' => $alerta])>
                             <td class="tp-persona">

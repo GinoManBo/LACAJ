@@ -9,6 +9,7 @@ use App\Models\Practica;
 use App\Models\Region;
 use App\Models\Usuario;
 use App\Services\Auditoria;
+use App\Services\CertificadosPractica;
 use App\Services\Notificaciones;
 use App\Services\Practicas;
 use App\Support\Notas;
@@ -353,13 +354,13 @@ class JuridicaBiobioController extends Controller
         $conceptoFinal = Notas::concepto($notaActual);
         $esNivelable = Notas::esNivelable($notaActual);
 
-        // Preselección por defecto: si es Regular, sugiere BUENA; de lo contrario su concepto actual
+        // Preselección por defecto: si es Regular, sugiere BUENA por regla de nivelación; de lo contrario su concepto institucional
         $claveSugerida = match ($conceptoFinal) {
-            'Sobresaliente' => 'SOBRESALIENTE',
-            'Muy Buena' => 'MUY_BUENA',
+            'Sobresaliente', 'Muy Buena' => 'SOBRESALIENTE',
             'Buena' => 'BUENA',
             'Regular' => 'BUENA',
-            default => 'DEFICIENTE',
+            'Mala' => 'MALA',
+            default => 'MALA',
         };
 
         return view('secretaria.juridica.ver', [
@@ -374,7 +375,10 @@ class JuridicaBiobioController extends Controller
             'claveSugerida' => $claveSugerida,
             'puedeAjustarNota' => in_array($p->estado, ['remitida_biobio', 'finalizada', 'nivelada_biobio'], true),
             'puedeRechazar' => in_array($p->estado, ['remitida_biobio', 'finalizada', 'nivelada_biobio'], true),
-            'puedeDespachar' => in_array($p->estado, ['remitida_biobio', 'nivelada_biobio', 'finalizada'], true) && $evaluacion && $evaluacion->aprobado,
+            'puedeDespachar' => in_array($p->estado, ['remitida_biobio', 'nivelada_biobio', 'finalizada', 'cerrada_historial'], true)
+                && $evaluacion
+                && ($p->nota_practica !== null ? Notas::esAprobatoria($p->nota_practica) : $evaluacion->aprobado)
+                && ! is_null($p->firmado_director_general_at),
             'documentos' => $p->postulacion->documentos,
         ]);
     }
@@ -414,8 +418,16 @@ class JuridicaBiobioController extends Controller
             'justificacion_nivelacion' => 'Calificación fijada en «'.$nombreConcepto.'»: '.$datos['justificacion'],
         ]);
 
+        $esAprobatorio = Notas::esAprobatoria($notaNueva);
+        if ($p->evaluacion) {
+            $p->evaluacion->update([
+                'promedio' => $notaNueva,
+                'aprobado' => $esAprobatorio,
+            ]);
+        }
+
         Calificacion::updateOrCreate(
-            ['practica_id' => $p->id, 'instancia' => 2],
+            ['practica_id' => $p->id, 'instancia' => 3],
             [
                 'nota' => $notaNueva,
                 'fecha' => now()->toDateString(),
@@ -493,8 +505,14 @@ class JuridicaBiobioController extends Controller
 
         $p = Practica::with('practicante.postulante', 'evaluacion')->findOrFail($id);
 
-        if (! $p->evaluacion || ! $p->evaluacion->aprobado) {
+        $estaAprobada = $p->nota_practica !== null ? Notas::esAprobatoria($p->nota_practica) : ($p->evaluacion && $p->evaluacion->aprobado);
+
+        if (! $estaAprobada) {
             return back()->withErrors(['despacho' => 'Solo pueden despacharse prácticas con evaluación aprobada.']);
+        }
+
+        if (is_null($p->firmado_director_general_at)) {
+            return back()->withErrors(['despacho' => 'No se puede despachar: el Certificado aún no ha sido suscrito con FirmaGob por el Director General.']);
         }
 
         // Autoriza documentos y emite cierre formal
@@ -517,14 +535,74 @@ class JuridicaBiobioController extends Controller
             Notificaciones::crear(
                 $usuarioId,
                 'aviso',
-                'Certificados despachados formalmente',
-                'La Secretaría Jurídica Central de Biobío ha emitido y visado su Certificado para la Corte Suprema y la Resolución de término. Ya se encuentran disponibles para descarga.',
+                'Certificados disponibles en su portal',
+                'La Secretaría Jurídica Central de Biobío ha autorizado y despachado su Certificado para la Corte Suprema y la Resolución de término. Ya se encuentran disponibles para descarga en su portal.',
                 'practica',
                 $p->id
             );
         }
 
-        return back()->with('ok', 'Expediente formalmente despachado y archivado en CerradaHistorial. Se emitieron las notificaciones al postulante.');
+        return back()->with('ok', 'Expediente formalmente autorizado, despachado al portal del postulante y archivado en Historial. Los documentos oficiales quedaron disponibles para descarga.');
+    }
+
+    /**
+     * Descarga del Certificado Oficial para la Corte Suprema (PDF).
+     */
+    public function descargarCertificado(Request $request, int $id)
+    {
+        $this->autorizar($request);
+        $p = Practica::with(['practicante.postulante', 'consultorio.region', 'evaluacion', 'certificadoFirmagob'])->findOrFail($id);
+
+        if ($msg = CertificadosPractica::bloqueo($p)) {
+            return back()->with('error', $msg)->withErrors(['descarga' => $msg]);
+        }
+
+        $pdfBin = CertificadosPractica::pdfCertificado($p, $request->user());
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        return response($pdfBin, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="Certificado_Corte_Suprema_'.$rut.'.pdf"',
+        ]);
+    }
+
+    /**
+     * Descarga de la Resolución Oficial de Término (PDF).
+     */
+    public function descargarResolucion(Request $request, int $id)
+    {
+        $this->autorizar($request);
+        $p = Practica::with(['practicante.postulante', 'consultorio.region', 'evaluacion'])->findOrFail($id);
+
+        if ($msg = CertificadosPractica::bloqueo($p)) {
+            return back()->with('error', $msg)->withErrors(['descarga' => $msg]);
+        }
+
+        $pdfBin = CertificadosPractica::pdfResolucion($p, $request->user());
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        return response($pdfBin, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="Resolucion_Aprobacion_'.$rut.'.pdf"',
+        ]);
+    }
+
+    /**
+     * Descarga del Expediente Completo en ZIP para remisión manual o correo personal.
+     */
+    public function descargarExpediente(Request $request, int $id)
+    {
+        $this->autorizar($request);
+        $p = Practica::with(['practicante.postulante', 'consultorio.region', 'evaluacion', 'certificadoFirmagob'])->findOrFail($id);
+
+        if ($msg = CertificadosPractica::bloqueo($p)) {
+            return back()->with('error', $msg)->withErrors(['descarga' => $msg]);
+        }
+
+        $zipPath = CertificadosPractica::zipExpediente($p, $request->user());
+        $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        return response()->download($zipPath, 'Expediente_Practica_'.$rut.'.zip')->deleteFileAfterSend();
     }
 
     /**

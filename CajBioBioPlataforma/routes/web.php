@@ -22,7 +22,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'cambio.password'])->group(function () {
-    foreach (['admin', 'secretaria', 'tutor', 'practicante', 'gobernador', 'postulante'] as $portal) {
+    foreach (['admin', 'secretaria', 'tutor', 'practicante', 'gobernador', 'postulante', 'director', 'director_general'] as $portal) {
         require __DIR__."/portales/{$portal}.php";
     }
 });
