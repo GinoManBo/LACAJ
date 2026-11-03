@@ -369,6 +369,7 @@ class JuridicaBiobioController extends Controller
             'estadistica' => Practicas::estadistica($p),
             'evaluacion' => $evaluacion,
             'criterios' => $criterios,
+            'criteriosList' => Notas::CRITERIOS,
             'conceptoFinal' => $conceptoFinal,
             'esNivelable' => $esNivelable,
             'opcionesNotas' => Notas::OPCIONES,
@@ -384,44 +385,96 @@ class JuridicaBiobioController extends Controller
     }
 
     /**
-     * Ajuste manual de calificación institucional por la Secretaría Jurídica Central.
-     * Muestra todas las opciones en palabras (Sobresaliente, Muy Buena, Buena, Regular, Deficiente)
-     * y registra la decisión manual con su justificación normativa institucional.
+     * Modificación manual de calificación institucional por la Secretaría Jurídica Central.
+     * Permite modificar individualmente en conceptos los 7 criterios reglamentarios
+     * (Conocimiento jurídico, Responsabilidad, Iniciativa, Sentido social, Conducta,
+     * Honorabilidad, Asistencia y puntualidad) y registrar la justificación institucional.
      */
     public function nivelar(Request $request, int $id)
     {
         $this->autorizar($request);
 
-        $p = Practica::with('practicante.postulante')->findOrFail($id);
+        $p = Practica::with('practicante.postulante', 'evaluacion')->findOrFail($id);
 
-        $datos = $request->validate([
-            'concepto' => ['required', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))],
+        $reglas = [
             'justificacion' => ['required', 'string', 'min:10', 'max:2000'],
-        ], [
-            'concepto.required' => 'Seleccione una calificación en palabras.',
-            'concepto.in' => 'Seleccione una opción válida de calificación.',
-            'justificacion.required' => 'Debe ingresar la justificación normativa para el ajuste de calificación.',
+            'concepto' => ['nullable', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))],
+        ];
+
+        foreach (array_keys(Notas::CRITERIOS) as $crit) {
+            $reglas[$crit] = ['nullable', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))];
+        }
+
+        $datos = $request->validate($reglas, [
+            'justificacion.required' => 'Debe ingresar la justificación institucional para la modificación de calificación.',
             'justificacion.min' => 'La justificación debe contener al menos 10 caracteres.',
+            'in' => 'Seleccione una calificación válida en palabras.',
         ]);
 
-        $clave = $datos['concepto'];
-        $opcion = Notas::OPCIONES[$clave];
-        $nombreConcepto = $opcion['nombre'];
-        $notaNueva = $opcion['valor'];
+        // Determinar si se enviaron criterios individuales en la solicitud
+        $hayCriteriosEnRequest = false;
+        foreach (array_keys(Notas::CRITERIOS) as $crit) {
+            if (! empty($datos[$crit])) {
+                $hayCriteriosEnRequest = true;
+                break;
+            }
+        }
+
+        $puntajes = [];
+        if ($hayCriteriosEnRequest) {
+            foreach (array_keys(Notas::CRITERIOS) as $crit) {
+                if (! empty($datos[$crit])) {
+                    $puntajes[$crit] = Notas::valorDesdeConcepto($datos[$crit]);
+                } elseif ($p->evaluacion && isset($p->evaluacion->{$crit})) {
+                    $puntajes[$crit] = (float) $p->evaluacion->{$crit};
+                } else {
+                    $puntajes[$crit] = 5.0; // Valor por defecto Buena
+                }
+            }
+
+            $promedioCalculado = Notas::promedio($puntajes);
+            $notaPractica = round($promedioCalculado, 1);
+
+            if (! empty($datos['concepto'])) {
+                $claveConcepto = $datos['concepto'];
+                $nombreConcepto = Notas::OPCIONES[$claveConcepto]['nombre'];
+                if (Notas::concepto($notaPractica) !== $nombreConcepto) {
+                    $notaPractica = (float) Notas::OPCIONES[$claveConcepto]['valor'];
+                }
+            } else {
+                $nombreConcepto = Notas::concepto($notaPractica);
+            }
+        } else {
+            // Solo se especificó el concepto general
+            $claveConcepto = $datos['concepto'] ?? 'BUENA';
+            $opcion = Notas::OPCIONES[$claveConcepto] ?? Notas::OPCIONES['BUENA'];
+            $nombreConcepto = $opcion['nombre'];
+            $notaPractica = (float) $opcion['valor'];
+            foreach (array_keys(Notas::CRITERIOS) as $crit) {
+                $puntajes[$crit] = $notaPractica;
+            }
+        }
+
         $conceptoAnterior = Notas::concepto($p->nota_practica);
 
         $p->update([
-            'nota_practica' => $notaNueva,
+            'nota_practica' => $notaPractica,
             'estado' => 'nivelada_biobio',
             'nivelada_at' => now(),
             'nivelada_por' => $request->user()->id,
             'justificacion_nivelacion' => 'Calificación fijada en «'.$nombreConcepto.'»: '.$datos['justificacion'],
         ]);
 
-        $esAprobatorio = Notas::esAprobatoria($notaNueva);
+        $esAprobatorio = Notas::esAprobatoria($notaPractica);
         if ($p->evaluacion) {
-            $p->evaluacion->update([
-                'promedio' => $notaNueva,
+            $p->evaluacion->update($puntajes + [
+                'promedio' => $notaPractica,
+                'aprobado' => $esAprobatorio,
+            ]);
+        } else {
+            $p->evaluacion()->create($puntajes + [
+                'abogado_id' => $p->abogado_id ?? 1,
+                'promedio' => $notaPractica,
                 'aprobado' => $esAprobatorio,
             ]);
         }
@@ -429,10 +482,10 @@ class JuridicaBiobioController extends Controller
         Calificacion::updateOrCreate(
             ['practica_id' => $p->id, 'instancia' => 3],
             [
-                'nota' => $notaNueva,
+                'nota' => $notaPractica,
                 'fecha' => now()->toDateString(),
                 'registrada_por' => $request->user()->id,
-                'observaciones' => 'Ajuste manual de calificación institucional a «'.$nombreConcepto.'» por Secretaría Jurídica Central: '.$datos['justificacion'],
+                'observaciones' => 'Modificación institucional de calificación a «'.$nombreConcepto.'» por Secretaría Jurídica Central: '.$datos['justificacion'],
             ]
         );
 
@@ -453,7 +506,7 @@ class JuridicaBiobioController extends Controller
             );
         }
 
-        return back()->with('ok', 'Calificación institucional fijada en «'.$nombreConcepto.'» correctamente.');
+        return back()->with('ok', 'Calificación institucional modificada a «'.$nombreConcepto.'» correctamente.');
     }
 
     /**
@@ -482,7 +535,7 @@ class JuridicaBiobioController extends Controller
             'motivo' => $datos['motivo'],
         ], $request->user()->id);
 
-        if ($usuarioId = $p->practicante->usuario_id) {
+        if ($usuarioId = $p->practicante?->usuario_id) {
             Notificaciones::crear(
                 $usuarioId,
                 'urgente',
@@ -531,7 +584,7 @@ class JuridicaBiobioController extends Controller
             'concepto_final' => Notas::concepto($p->nota_practica),
         ], $request->user()->id);
 
-        if ($usuarioId = $p->practicante->usuario_id) {
+        if ($usuarioId = $p->practicante?->usuario_id) {
             Notificaciones::crear(
                 $usuarioId,
                 'aviso',
