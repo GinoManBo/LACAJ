@@ -18,13 +18,13 @@
 
 Tras la implementación de los nuevos roles institucionales (`director_regional`, `jefe_ucoe`, `director_general`, `juridica_central`), la Revisión Colegiada UCOE, la Carta de Presentación autogenerada, la 2ª Instancia en Corte de Apelaciones, la Nivelación en Jurídica Central, la FirmaGob del Director General y el Panel de Estadísticas y Auditoría, el proyecto experimentó un salto sustantivo de completitud:
 
-| Estado | Auditoría Anterior (01-nov-2026) | Auditoría Actual (02-nov-2026) | Variación |
+| Estado | Auditoría Anterior (01-nov-2026) | Auditoría Actual (03-nov-2026) | Variación |
 | :--- | :---: | :---: | :---: |
-| `[x]` **Integrado (100 %)** | 21 (39,6 %) | **35 (66,0 %)** | **+14 ítems (+26,4 %)** |
-| `[~]` **Parcialmente integrado (50 %)** | 19 (35,8 %) | **12 (22,6 %)** | -7 ítems |
+| `[x]` **Integrado (100 %)** | 21 (39,6 %) | **37 (69,8 %)** | **+16 ítems (+30,2 %)** |
+| `[~]` **Parcialmente integrado (50 %)** | 19 (35,8 %) | **10 (18,9 %)** | -9 ítems |
 | `[ ]` **No integrado (0 %)** | 13 (24,5 %) | **6 (11,3 %)** | **-7 ítems (-13,2 %)** |
 | **Total de ítems verificables** | **53 (100 %)** | **53 (100 %)** | — |
-| **Avance Global Ponderado** *(Integrados + 50 % Parciales)* | **57,5 %** | **77,4 %** | **+19,9 puntos** |
+| **Avance Global Ponderado** *(Integrados + 50 % Parciales)* | **57,5 %** | **79,2 %** | **+21,7 puntos** |
 
 > **Hito clave alcanzado:** Las **Fases 2 y 3 del Camino Alternativo Regional y Nacional** (Inicio con Carta de Presentación firmada, alertas a los 5,5 meses / 14 días, liberación de cupos a los 180 días, 1ª y 2ª instancia de evaluación en palabras, Revisión Colegiada UCOE, remisión y nivelación en Jurídica Biobío, FirmaGob del Director General y despacho con expediente `.zip`) se encuentran **100 % operativas de punta a punta**.
 
@@ -33,7 +33,7 @@ Tras la implementación de los nuevos roles institucionales (`director_regional`
 ## 1. Perfiles de Usuario y Gobernanza del Sistema
 
 ### 1.1. Postulante (antes "Practicante")
-* `[~]` **Cambio de terminología global:** Se reemplazó el término *"Practicante"* por **"Postulante"** en los menús principales (`layouts/portal.blade.php`), vistas de práctica (`practicante/inicio.blade.php`), cartas, certificados y bandejas directivas/secretaría. Se mantiene como `[~]` únicamente porque a nivel técnico interno algunas rutas (`/practicante`, `/admin/practicantes`) y encabezados puntuales de administración conservan el identificador heredado `practicante`.
+* `[x]` **Cambio de terminología global:** Se reemplazó el término *"Practicante"* por **"Postulante"** en los menús principales (`layouts/portal.blade.php`), vistas de práctica (`practicante/inicio.blade.php`), cartas, certificados y bandejas directivas/secretaría. Por definición de arquitectura y estabilidad, las rutas internas (`/practicante`, `/admin/practicantes`) se mantienen así para garantizar compatibilidad retroactiva y evitar problemas de enlaces.
 * `[x]` **Funciones de carga de antecedentes e informe final:** El postulante cuenta con el asistente de 4 pasos en `Postulante\PostulacionController` para subir sus documentos de postulación y con el módulo en `Practicante\PracticanteController::subirInforme` para cargar su Informe Final de Práctica y descargar su Certificado (incluyendo el PDF firmado con FirmaGob) y Resolución.
 
 ### 1.2. Abogado Jefe (antes "Tutor")
@@ -68,7 +68,7 @@ Tras la implementación de los nuevos roles institucionales (`director_regional`
 * `[x]` **Depuración de antecedentes académicos (Eliminación de 5° año):** Se eliminó por completo el campo `anio_carrera` del formulario (`postulante/postulacion/paso-2.blade.php`) y de las validaciones de `Postulaciones.php`.
 
 #### Paso 2: Carga de Documentación Obligatoria
-* `[~]` **1. Fotocopia Cédula de Identidad (ambos lados):** Se exigen `cedula_frontal` y `cedula_reverso` como obligatorios en el Paso 3, pero la validación actual (`PostulacionController::REGLAS_ARCHIVO`) acepta `jpg,jpeg,png` y aún no incluye `.pdf` para esos dos campos.
+* `[x]` **1. Fotocopia Cédula de Identidad (ambos lados):** Se exigen `cedula_frontal` y `cedula_reverso` como obligatorios en el Paso 3, aceptando documentos en formato `PDF` (además de imágenes `JPG/PNG`) hasta 5 MB tanto en la interfaz de usuario con indicador de archivo cargado como en la validación del servidor.
 * `[x]` **2. Certificado de Egreso o Licenciatura (Obligatorio) y eliminación de Certificado de Alumno Regular:** En `PostulacionController` se eliminó el certificado de alumno regular y se incorporó `certificado_egreso` dentro de `TIPOS_OBLIGATORIOS`, aceptando `pdf,jpg,jpeg,png` hasta 5 MB.
 * `[x]` **3. Certificado de Antecedentes para Fines Especiales:** Obligatorio (`certificado_antecedentes`), validando formato `pdf,jpg,jpeg,png` y tamaño máximo de 5 MB.
 * `[x]` **4. Fotografía tamaño carnet:** Obligatoria (`foto_carnet`), validando formato de imagen (`jpg,jpeg,png`) con nombre y RUT asociados al registro del postulante.

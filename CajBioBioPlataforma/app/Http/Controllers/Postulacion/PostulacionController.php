@@ -259,11 +259,11 @@ class PostulacionController extends Controller
     /** @return array<string,string> tipo => id de ArchivoStaging */
     private function procesarArchivos(Request $request, array $actuales): array
     {
-        $reglaImagen = ['image', 'mimes:jpg,jpeg,png', 'max:5120'];
+        $reglaCedula = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'];
         $reglaDoc = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:'.(config('caj.max_upload_mb', 8) * 1024)];
         $reglas = [];
         foreach (self::TIPOS_OBLIGATORIOS as $t) {
-            $reglaTipo = in_array($t, ['cedula_frontal', 'cedula_reverso'], true) ? $reglaImagen : $reglaDoc;
+            $reglaTipo = in_array($t, ['cedula_frontal', 'cedula_reverso'], true) ? $reglaCedula : $reglaDoc;
             $reglas[$t] = [isset($actuales[$t]) ? 'nullable' : 'required', ...$reglaTipo];
         }
         foreach (self::TIPOS_OPCIONALES as $t) {
@@ -271,8 +271,8 @@ class PostulacionController extends Controller
         }
         $request->validate($reglas, [
             'required' => 'Debe adjuntar este archivo.',
-            'image' => 'El archivo debe ser una imagen JPG o PNG.',
-            'mimes' => 'Formato no permitido.',
+            'image' => 'El archivo debe ser un documento PDF o imagen JPG/PNG.',
+            'mimes' => 'Formato no permitido (se acepta PDF, JPG o PNG).',
             'max' => 'El archivo supera el tamaño máximo.',
         ]);
 
