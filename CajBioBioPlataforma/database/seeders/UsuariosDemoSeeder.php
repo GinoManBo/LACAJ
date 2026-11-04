@@ -14,9 +14,9 @@ class UsuariosDemoSeeder extends Seeder
      *
      * ESTRUCTURA OPERATIVA INSTITUCIONAL:
      * - Sede Central Biobío (Concepción):
-     *   - 2 Secretarias Regionales locales para Biobío (BI).
-     *   - 1 Secretaria de Jurídica Central (rol: juridica_central), con potestad nacional
-     *     para recepción centralizada, nivelación de notas y despacho final de expedientes.
+     *   - Perfil Unificado de Secretaría de Biobío y Jurídica Central (rol: secretaria, region: BI).
+     *     Gestiona tanto la operación territorial local (Biobío) como la supervisión nacional,
+     *     la nivelación institucional de oficio y el despacho oficial tras FirmaGob.
      * - Regiones Externas:
      *   - 1 Secretaria Regional en cada una de las 5 regiones de la jurisdicción:
      *     Ñuble (NB), La Araucanía (AR), Los Ríos (LR), Los Lagos (LL) y Aysén (AI).
@@ -34,12 +34,10 @@ class UsuariosDemoSeeder extends Seeder
             // Administración General
             ['Mauricio', 'Decap Fernández', 'admin@cajbiobio.cl', '10000001-6', 'administrador', null, null],
 
-            // Sede Central Biobío (BI) - Secretarías Regionales
+            // Sede Central Biobío (BI) - Perfil Unificado de Secretaría y Jurídica Central (Concepción)
             ['Paulina', 'Herrera Núñez', 'secretaria1@cajbiobio.cl', '10000002-4', 'secretaria', $regiones['BI'] ?? null, null],
             ['Soledad', 'Vergara Pino', 'secretaria2@cajbiobio.cl', '10000003-2', 'secretaria', $regiones['BI'] ?? null, null],
-
-            // Jurídica Central Biobío (Concepción) - Potestad Nacional
-            ['Lorena', 'Sanhueza Carrasco', 'juridica@cajbiobio.cl', '10000010-5', 'juridica_central', $regiones['BI'] ?? null, null],
+            ['Lorena', 'Sanhueza Carrasco', 'juridica@cajbiobio.cl', '10000010-5', 'secretaria', $regiones['BI'] ?? null, null],
 
             // Regiones Externas - Secretarías Regionales
             ['Loreto', 'Morales Bastías', 'secretaria_nuble@cajbiobio.cl', '10000011-3', 'secretaria', $regiones['NB'] ?? null, null],
@@ -95,5 +93,8 @@ class UsuariosDemoSeeder extends Seeder
                 ]);
             }
         }
+
+        // Carga de casos y expedientes de demostración operativa en todas las etapas
+        $this->call(DatosDemostracionSeeder::class);
     }
 }

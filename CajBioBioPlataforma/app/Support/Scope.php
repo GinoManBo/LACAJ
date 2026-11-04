@@ -9,14 +9,25 @@ final class Scope
 {
     public static function regionId(Usuario $u): ?int
     {
-        // Administrador, Director General y Jurídica Central (Biobío Concepción) tienen alcance nacional/central
-        if ($u->rol === 'administrador' || $u->rol === 'juridica_central' || $u->rol === 'director_general') {
+        // Administrador y Director General tienen alcance nacional/central irrestricto
+        if ($u->rol === 'administrador' || $u->rol === 'director_general') {
             return null;
+        }
+        // Jurídica Central opera con base en la Sede Central (Biobío - Concepción)
+        if ($u->rol === 'juridica_central') {
+            return $u->region_id ?? \App\Models\Region::where('codigo', 'BI')->value('id');
         }
         if (in_array($u->rol, ['secretaria', 'director_regional', 'jefe_ucoe'], true) && $u->region_id) {
             return $u->region_id;
         }
         abort(403, 'Sin región asignada.');
+    }
+
+    public static function esBiobioCentral(Usuario $u): bool
+    {
+        return $u->rol === 'juridica_central'
+            || ($u->rol === 'secretaria' && $u->region && $u->region->codigo === 'BI')
+            || $u->rol === 'administrador';
     }
 
     public static function porRegion(Builder $q, Usuario $u, string $columna = 'region_id'): Builder

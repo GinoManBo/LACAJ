@@ -26,7 +26,6 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--amarillo-800);flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <div>
             <strong style="color:var(--amarillo-900);font-size:1rem;">Calificación en concepto «Regular» — Sujeto a Revisión y Nivelación Institucional</strong>
-            <p style="margin:.25rem 0 0;font-size:.88rem;color:var(--amarillo-950);">Conforme al reglamento institucional de la CAJ Biobío, las calificaciones regulares de regiones externas deben revisarse en sede central para su elevación manual al concepto <strong>Buena</strong> (u otro concepto meritorio), salvo antecedentes sancionatorios fundados.</p>
         </div>
     </div>
 @elseif ($practica->estado === 'nivelada_biobio')
@@ -62,7 +61,7 @@
         @if ($puedeAjustarNota)
             <x-boton tipo="primario" data-modal-abrir="modal-ajustar-nota">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.4rem;"><polyline points="18 15 12 9 6 15"/></svg>
-                Determinar Calificación Institucional
+                Modificar calificación institucional
             </x-boton>
         @endif
 
@@ -175,69 +174,127 @@
     </div>
 </div>
 
-{{-- Modal para determinar manualmente la calificación institucional con todas las opciones en palabras --}}
+{{-- Modal para modificar manualmente la calificación institucional con los 7 criterios individualmente --}}
 @if ($puedeAjustarNota)
-    <div id="modal-ajustar-nota" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-ajustar-titulo">
-        <div class="modal-contenido">
-            <div class="modal-cabecera">
-                <h2 id="modal-ajustar-titulo" class="modal-titulo">Determinar Calificación Institucional</h2>
-                <button type="button" class="modal-cerrar" data-modal-cerrar aria-label="Cerrar modal">&times;</button>
-            </div>
-            <form action="{{ route('secretaria.juridica.nivelar', $practica->id) }}" method="POST">
-                @csrf
-                <div class="modal-cuerpo">
-                    <p style="margin:0 0 .75rem;font-size:.9rem;color:var(--texto);">
-                        Calificación actual registrada: <strong>{{ $conceptoFinal }}</strong>.
-                        Seleccione el concepto reglamentario final en palabras y fundamente la decisión institucional:
-                    </p>
-                    <div class="campo" style="margin-bottom:1rem;">
-                        <label class="campo-etiqueta" for="concepto">Calificación en palabras <span class="texto-rojo">*</span></label>
-                        <select id="concepto" name="concepto" class="campo-control" required>
-                            @foreach ($opcionesNotas as $clave => $op)
-                                <option value="{{ $clave }}" @selected($clave === $claveSugerida)>
-                                    {{ $op['nombre'] }} {{ $op['aprobatorio'] ? '(Aprobatoria)' : '(Reprobatoria)' }}
+    <x-modal id="modal-ajustar-nota" titulo="Modificar calificación institucional" :grande="true">
+        <form id="form-ajustar-nota" action="{{ route('secretaria.juridica.nivelar', $practica->id) }}" method="POST">
+            @csrf
+            <p style="margin:0 0 1rem;font-size:.9rem;color:var(--texto);">
+                Calificación actual registrada: <strong>{{ $conceptoFinal }}</strong>.
+                Modifique individualmente la calificación de cada uno de los 7 criterios reglamentarios en palabras:
+            </p>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:.85rem;margin-bottom:1.25rem;background:var(--papel);padding:1rem;border-radius:.5rem;border:1px solid var(--borde-suave);">
+                @foreach ($criteriosList as $clave => $etiqueta)
+                    @php
+                        $valActual = $evaluacion && isset($evaluacion->{$clave}) 
+                            ? \App\Support\Notas::claveConcepto($evaluacion->{$clave}) 
+                            : $claveSugerida;
+                    @endphp
+                    <div class="campo" style="margin:0;">
+                        <label class="campo-etiqueta" for="crit_{{ $clave }}" style="font-weight:600;font-size:.85rem;">
+                            {{ $etiqueta }} <span class="texto-rojo">*</span>
+                        </label>
+                        <select id="crit_{{ $clave }}" name="{{ $clave }}" class="campo-control" data-criterio-modal required style="font-size:.9rem;padding:.45rem .6rem;">
+                            @foreach ($opcionesNotas as $cClave => $op)
+                                <option value="{{ $cClave }}" @selected($cClave === $valActual)>
+                                    {{ $op['nombre'] }}
                                 </option>
                             @endforeach
                         </select>
-                        <p class="sec-menor" style="margin-top:.35rem;">Por reglamento institucional, las calificaciones en concepto «Regular» sin faltas disciplinarias se elevan a «Buena».</p>
                     </div>
-                    <div class="campo">
-                        <label for="justificacion" class="campo-etiqueta">Justificación normativa y antecedentes <span class="texto-rojo">*</span></label>
-                        <textarea id="justificacion" name="justificacion" rows="4" class="campo-control" required placeholder="Indique la justificación normativa reglamentaria (ej: cumplimiento íntegro del plan de práctica institucional sin medidas disciplinarias)..."></textarea>
-                    </div>
+                @endforeach
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;background:var(--azul-50);border:1px solid var(--azul-200);border-radius:.4rem;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem;">
+                <div>
+                    <span style="font-size:.85rem;color:var(--azul-800);font-weight:600;">Calificación Final Resultante:</span>
+                    <div id="resultado-concepto-nombre" style="font-size:1.25rem;font-weight:700;color:var(--azul-900);">{{ $conceptoFinal }}</div>
                 </div>
-                <div class="modal-pie">
-                    <x-boton type="button" tipo="secundario" data-modal-cerrar>Cancelar</x-boton>
-                    <x-boton type="submit" tipo="primario">Guardar Calificación Institucional</x-boton>
+                <div style="min-width:220px;">
+                    <label class="campo-etiqueta" for="concepto" style="font-size:.8rem;color:var(--azul-800);">Concepto formal a ratificar:</label>
+                    <select id="concepto" name="concepto" class="campo-control" style="font-size:.85rem;padding:.35rem .5rem;">
+                        @foreach ($opcionesNotas as $cClave => $op)
+                            <option value="{{ $cClave }}" @selected($cClave === $claveSugerida)>
+                                {{ $op['nombre'] }} {{ $op['aprobatorio'] ? '(Aprobatoria)' : '(Reprobatoria)' }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
-            </form>
-        </div>
-    </div>
+            </div>
+
+            <div class="campo">
+                <label for="justificacion" class="campo-etiqueta">Justificación normativa y antecedentes <span class="texto-rojo">*</span></label>
+                <textarea id="justificacion" name="justificacion" rows="3" class="campo-control" required placeholder="Indique la justificación normativa institucional (ej: cumplimiento íntegro del plan de práctica institucional sin medidas disciplinarias)..."></textarea>
+            </div>
+        </form>
+        <x-slot:pie>
+            <x-boton type="submit" tipo="primario" form="form-ajustar-nota">Guardar modificación</x-boton>
+        </x-slot:pie>
+    </x-modal>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const selectsCriterios = document.querySelectorAll('[data-criterio-modal]');
+            const elemResultado = document.getElementById('resultado-concepto-nombre');
+            const selectConcepto = document.getElementById('concepto');
+            
+            const valoresConceptos = {
+                'SOBRESALIENTE': 7.0,
+                'BUENA': 5.0,
+                'REGULAR': 4.0,
+                'MALA': 3.0
+            };
+
+            function actualizarConceptoResultante() {
+                if (!selectsCriterios.length) return;
+                let suma = 0;
+                let count = 0;
+                selectsCriterios.forEach(function (s) {
+                    if (valoresConceptos[s.value] !== undefined) {
+                        suma += valoresConceptos[s.value];
+                        count++;
+                    }
+                });
+                if (count === 0) return;
+                const prom = suma / count;
+                let concepto = 'Mala';
+                let clave = 'MALA';
+                if (prom >= 6.0) {
+                    concepto = 'Sobresaliente';
+                    clave = 'SOBRESALIENTE';
+                } else if (prom >= 5.0) {
+                    concepto = 'Buena';
+                    clave = 'BUENA';
+                } else if (prom >= 4.0) {
+                    concepto = 'Regular';
+                    clave = 'REGULAR';
+                }
+                if (elemResultado) elemResultado.textContent = concepto;
+                if (selectConcepto) selectConcepto.value = clave;
+            }
+
+            selectsCriterios.forEach(function (s) {
+                s.addEventListener('change', actualizarConceptoResultante);
+            });
+        });
+    </script>
 @endif
 
 @if ($puedeRechazar)
-    <div id="modal-rechazar-sancion" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-rechazar-titulo">
-        <div class="modal-contenido">
-            <div class="modal-cabecera">
-                <h2 id="modal-rechazar-titulo" class="modal-titulo">Rechazar por Causal Disciplinaria Fundada</h2>
-                <button type="button" class="modal-cerrar" data-modal-cerrar aria-label="Cerrar modal">&times;</button>
+    <x-modal id="modal-rechazar-sancion" titulo="Rechazar por Causal Disciplinaria Fundada">
+        <form id="form-rechazar-sancion" action="{{ route('secretaria.juridica.rechazar_sancion', $practica->id) }}" method="POST">
+            @csrf
+            <p style="margin:0 0 .75rem;font-size:.9rem;color:var(--rojo-800);">Se registrará el rechazo de la práctica por antecedentes disciplinarios graves, impidiendo la aprobación y nivelación.</p>
+            <div class="campo">
+                <label for="motivo" class="campo-etiqueta">Fundamento y antecedentes sancionatorios <span class="texto-rojo">*</span></label>
+                <textarea id="motivo" name="motivo" rows="4" class="campo-control" required placeholder="Indique los antecedentes sumarios o resoluciones disciplinarias fundadas..."></textarea>
             </div>
-            <form action="{{ route('secretaria.juridica.rechazar_sancion', $practica->id) }}" method="POST">
-                @csrf
-                <div class="modal-cuerpo">
-                    <p style="margin:0 0 .75rem;font-size:.9rem;color:var(--rojo-800);">Se registrará el rechazo de la práctica por antecedentes disciplinarios graves, impidiendo la aprobación y nivelación.</p>
-                    <div class="campo">
-                        <label for="motivo" class="campo-etiqueta">Fundamento y antecedentes sancionatorios <span class="texto-rojo">*</span></label>
-                        <textarea id="motivo" name="motivo" rows="4" class="campo-control" required placeholder="Indique los antecedentes sumarios o resoluciones disciplinarias fundadas..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-pie">
-                    <x-boton type="button" tipo="secundario" data-modal-cerrar>Cancelar</x-boton>
-                    <x-boton type="submit" tipo="peligro">Confirmar Rechazo por Sanción</x-boton>
-                </div>
-            </form>
-        </div>
-    </div>
+        </form>
+        <x-slot:pie>
+            <x-boton type="submit" tipo="peligro" form="form-rechazar-sancion">Confirmar Rechazo por Sanción</x-boton>
+        </x-slot:pie>
+    </x-modal>
 @endif
 
 @endsection

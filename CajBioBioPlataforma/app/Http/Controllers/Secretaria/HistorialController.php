@@ -76,6 +76,7 @@ class HistorialController extends Controller
             'esSoloLectura' => in_array($p->estado, ['remitida_biobio', 'nivelada_biobio', 'rechazada_sancion', 'cerrada_historial'], true),
             'puedeRemitir' => $p->estado === 'finalizada' && $p->evaluacion !== null && $p->validada_director_at !== null,
             'faltaVisacionDirector' => $p->estado === 'finalizada' && $p->evaluacion !== null && $p->validada_director_at === null,
+            'esBiobioCentral' => Scope::esBiobioCentral($request->user()),
         ]);
     }
 
@@ -118,8 +119,13 @@ class HistorialController extends Controller
             'concepto' => Notas::concepto($p->nota_practica),
         ], $request->user()->id);
 
-        // Notificar a Jurídica Central Biobío
-        Usuario::whereIn('rol', ['juridica_central'])->get()->each(function ($u) use ($p) {
+        // Notificar a usuarias con facultades de Jurídica Central (rol juridica_central o secretaría de Biobío)
+        Usuario::where(function ($q) {
+            $q->where('rol', 'juridica_central')
+              ->orWhere(function ($s) {
+                  $s->where('rol', 'secretaria')->whereHas('region', fn ($r) => $r->where('codigo', 'BI'));
+              });
+        })->get()->each(function ($u) use ($p) {
             Notificaciones::crear(
                 $u->id,
                 'aviso',

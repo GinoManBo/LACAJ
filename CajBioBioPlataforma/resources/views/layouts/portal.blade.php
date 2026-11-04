@@ -6,8 +6,8 @@
         : 'Abogado Jefe Consultorio';
     $etiquetasRol = [
         'administrador' => 'Administrador',
-        'secretaria' => 'Secretaría regional',
-        'juridica_central' => 'Jurídica Central Biobío',
+        'secretaria' => ($u->region && $u->region->codigo === 'BI') ? 'Secretaría Biobío (Central)' : 'Secretaría regional',
+        'juridica_central' => 'Secretaría Biobío (Jurídica Central)',
         'director_regional' => 'Director Regional',
         'jefe_ucoe' => 'Jefe de UCOE Biobío',
         'director_general' => 'Director General',
@@ -34,15 +34,21 @@
         ],
         'secretaria' => array_merge([
             ['secretaria.panel', 'Panel general', 'inicio'],
-            ['secretaria.postulaciones', 'Postulaciones', 'lista'],
+            ['secretaria.postulaciones', ($u->region && $u->region->codigo === 'BI') ? 'Postulaciones Biobío' : 'Postulaciones', 'lista'],
             ['secretaria.practicas', 'Prácticas activas', 'maletin'],
             ['secretaria.historial', 'Historial', 'reloj'],
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
-        ], ($u->region && $u->region->codigo === 'BI') ? [['secretaria.juridica.index', 'Jurídica Central', 'lista']] : []),
+        ], ($u->region && $u->region->codigo === 'BI') ? [
+            ['secretaria.juridica.postulaciones', 'Supervisión Nacional', 'lista'],
+            ['secretaria.juridica.index', 'Jurídica Central', 'maletin'],
+        ] : []),
         'juridica_central' => [
-            ['secretaria.juridica.postulaciones', 'Antes: Postulaciones', 'lista'],
-            ['secretaria.juridica.index', 'Después: Expedientes', 'maletin'],
-            ['secretaria.historial', 'Historial general', 'reloj'],
+            ['secretaria.panel', 'Panel general', 'inicio'],
+            ['secretaria.postulaciones', 'Postulaciones Biobío', 'lista'],
+            ['secretaria.practicas', 'Prácticas activas', 'maletin'],
+            ['secretaria.juridica.postulaciones', 'Supervisión Nacional', 'lista'],
+            ['secretaria.juridica.index', 'Jurídica Central', 'maletin'],
+            ['secretaria.historial', 'Historial', 'reloj'],
             ['secretaria.consultorios', 'Consultorios', 'edificio'],
         ],
         'abogado' => [['tutor.inicio', ($u->abogado?->es_segunda_instancia ? 'Segunda Instancia (Corte)' : 'Mis postulantes'), 'inicio']],

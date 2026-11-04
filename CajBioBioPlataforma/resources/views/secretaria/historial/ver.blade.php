@@ -25,6 +25,12 @@
                 Pendiente de Visación por Dirección Regional / Jefatura UCOE
             </span>
         @endif
+        @if (!empty($esBiobioCentral))
+            <x-boton tipo="secundario" :href="route('secretaria.juridica.ver', $practica->id)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.4rem;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Gestionar en Jurídica Central
+            </x-boton>
+        @endif
         <x-boton tipo="secundario" :href="route('secretaria.historial')">@include('secretaria._icono', ['n' => 'volver']) Volver al historial</x-boton>
     </div>
 </div>
