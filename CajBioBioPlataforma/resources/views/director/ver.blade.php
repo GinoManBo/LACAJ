@@ -184,23 +184,14 @@
             @csrf
             
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;">
-                <label class="campo-etiqueta" style="font-weight:700; font-size:0.95rem; margin-bottom:0.5rem; display:block; color:#1e293b;">
+                <label class="campo-etiqueta" style="font-weight:700; font-size:0.95rem; margin-bottom:0.75rem; display:block; color:#1e293b;">
                     Calificación Final Directiva (Escala Institucional en Palabras):
                 </label>
-                <p style="font-size:0.8rem; color:#64748b; margin-bottom:0.75rem;">
-                    Propuesta original de 1ª instancia por Abogado Jefe: <strong>{{ \App\Support\Notas::concepto($evaluacion->promedio ?? $practica->nota_practica) }}</strong>. Puede ratificarla o seleccionar una calificación diferente.
-                </p>
 
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem;">
                     @foreach ($opcionesNotas as $clave => $opc)
                         @php
                             $estaSeleccionada = old('concepto', $claveActual) === $clave;
-                            $colorFondo = match ($clave) {
-                                'SOBRESALIENTE' => '#dbeafe',
-                                'BUENA' => '#dcfce7',
-                                'REGULAR' => '#fef3c7',
-                                default => '#fee2e2',
-                            };
                             $colorTexto = match ($clave) {
                                 'SOBRESALIENTE' => '#1e40af',
                                 'BUENA' => '#15803d',
@@ -208,7 +199,7 @@
                                 default => '#b91c1c',
                             };
                         @endphp
-                        <label style="border:2px solid {{ $estaSeleccionada ? $colorTexto : '#e2e8f0' }}; background:{{ $estaSeleccionada ? $colorFondo : '#ffffff' }}; border-radius:8px; padding:0.75rem 1rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem;">
+                        <label style="border:2px solid #e2e8f0; background:#ffffff; border-radius:8px; padding:0.75rem 1rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem;">
                             <input type="radio" name="concepto" value="{{ $clave }}" {{ $estaSeleccionada ? 'checked' : '' }} style="accent-color:{{ $colorTexto }};">
                             <div>
                                 <div style="font-weight:700; font-size:0.95rem; color:{{ $colorTexto }};">

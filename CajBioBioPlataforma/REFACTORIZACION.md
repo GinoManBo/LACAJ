@@ -437,3 +437,8 @@ El perfil de **Administrador General** corresponde al usuario central superior e
    * La Segunda Instancia queda desacoplada de cualquier área ficticia, gobernándose exclusivamente por el indicador institucional `es_segunda_instancia` y su `region_id`.
    * En el portal del tutor (`tutor/inicio.blade.php`) y en el listado de usuarios (`admin/usuarios/index.blade.php`), la cabecera y el detalle reflejan dinámicamente los consultorios reales asignados al profesional o su competencia ante la Corte de Apelaciones.
    * Se retiró el rol heredado `'gobernador'` de `Usuario::ROLES_GESTIONABLES`.
+
+10. **Resolución de Relación Faltante `registradaPor` en Modelo `Calificacion` (Hallazgo #N6):**
+   * En `DirectorRegionalController::ver` (utilizado por Directores Regionales y por la Jefatura / Revisores de UCOE Biobío al presionar «Ver legajo») y en `DirectorGeneralController::ver`, la carga impaciente incluye `'calificaciones.registradaPor'`.
+   * El modelo `App\Models\Calificacion` no tenía definida la relación Eloquent hacia el usuario que registró la calificación, a pesar de existir la columna de clave foránea `registrada_por` en la tabla `calificaciones`.
+   * Se definió la relación `public function registradaPor() { return $this->belongsTo(Usuario::class, 'registrada_por'); }` en `App\Models\Calificacion`, eliminando la excepción `RelationNotFoundException` y habilitando la apertura y visación del legajo en UCOE y Direcciones Regionales.
