@@ -19,7 +19,9 @@ use App\Services\Notificaciones;
 use App\Support\Calendario;
 use App\Support\Rut;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -91,7 +93,13 @@ class PostulacionController extends Controller
                 if ($this->esPostulante($request)) {
                     $entrada['rut'] = Rut::formatear($request->user()->rut);
                 }
-                $b['datos'] = $this->validar($entrada, $this->reglasPaso2($entrada), $this->mensajes());
+                $b['datos'] = $this->validar($entrada, $this->reglasPaso2($entrada, $b), $this->mensajes());
+                if (! empty($entrada['password'])) {
+                    $b['datos']['password_hash'] = Hash::make($entrada['password']);
+                } elseif (! empty($b['datos']['password_hash'])) {
+                    // Mantiene el hash de contraseña previamente configurado
+                }
+                unset($b['datos']['password'], $b['datos']['password_confirmation']);
                 break;
             case 3:
                 $b['educ'] = $this->validar($request->all(), $this->reglasPaso3(), $this->mensajes());
@@ -126,7 +134,7 @@ class PostulacionController extends Controller
 
         $regionId = Consultorio::findOrFail($b['consultorios'][0])->region_id;
 
-        $postulacion = DB::transaction(function () use ($b, $d, $rut, $regionId) {
+        $postulacion = DB::transaction(function () use ($b, $d, $rut, $regionId, $request) {
             $postulante = Postulante::updateOrCreate(['rut' => $rut], [
                 'nombre' => $d['nombre'], 'apellido' => $d['apellido'],
                 'fecha_nacimiento' => $d['fecha_nacimiento'], 'email' => mb_strtolower($d['email']),
@@ -139,6 +147,40 @@ class PostulacionController extends Controller
                 'emergencia_nombre' => $d['emergencia_nombre'], 'emergencia_vinculo' => $d['emergencia_vinculo'],
                 'emergencia_telefono' => $d['emergencia_telefono'], 'emergencia_email' => $d['emergencia_email'] ?? null,
             ]);
+
+            // Creación o vinculación inmediata de cuenta de usuario (sin limbo ni contraseñas temporales)
+            if (! auth()->check()) {
+                $usuario = Usuario::where('rut', $rut)->first();
+                $email = mb_strtolower($d['email']);
+                $passwordHash = $d['password_hash'] ?? (! empty($d['password']) ? Hash::make($d['password']) : Hash::make(Str::random(16)));
+
+                if ($usuario) {
+                    $usuario->update([
+                        'nombre' => $d['nombre'],
+                        'apellido' => $d['apellido'],
+                        'email' => $email,
+                        'password' => $passwordHash,
+                        'rol' => 'postulante',
+                        'debe_cambiar_password' => false,
+                        'activo' => true,
+                    ]);
+                } else {
+                    $usuario = Usuario::create([
+                        'nombre' => $d['nombre'],
+                        'apellido' => $d['apellido'],
+                        'rut' => $rut,
+                        'email' => $email,
+                        'password' => $passwordHash,
+                        'rol' => 'postulante',
+                        'debe_cambiar_password' => false,
+                        'activo' => true,
+                    ]);
+                }
+                Auth::login($usuario);
+                $request->session()->regenerate();
+            } else {
+                $usuario = $request->user();
+            }
 
             $postulacion = Postulacion::create([
                 'postulante_id' => $postulante->id, 'estado' => 'pendiente', 'region_id' => $regionId,
@@ -158,7 +200,7 @@ class PostulacionController extends Controller
                 $a->update(['consumed_at' => now()]);
             }
 
-            Auditoria::registrar('postulacion.crear', 'postulacion', $postulacion->id, ['rut' => $rut], null);
+            Auditoria::registrar('postulacion.crear', 'postulacion', $postulacion->id, ['rut' => $rut], $usuario->id);
 
             Usuario::where('rol', 'secretaria')->where('region_id', $regionId)->where('activo', true)->each(
                 fn ($s) => Notificaciones::crear($s->id, 'aviso', 'Nueva postulación', "{$d['nombre']} {$d['apellido']} envió una postulación.", 'postulacion', $postulacion->id)
@@ -168,9 +210,8 @@ class PostulacionController extends Controller
         });
 
         $this->descartarBorrador($request);
-        $request->session()->flash('postulacion_enviada', $postulacion->id);
 
-        return redirect()->route('postulacion.enviada');
+        return redirect()->route('postulante.inicio')->with('ok', 'Tu postulación fue recibida exitosamente y se encuentra en revisión.');
     }
 
     public function enviada(Request $request)
@@ -193,9 +234,9 @@ class PostulacionController extends Controller
         return $this->validar($input, $reglas, $this->mensajes());
     }
 
-    private function reglasPaso2(array $input): array
+    private function reglasPaso2(array $input, array $borrador = []): array
     {
-        return [
+        $reglas = [
             'nombre' => ['required', 'string', 'max:80'],
             'apellido' => ['required', 'string', 'max:80'],
             'rut' => ['required', 'string', fn ($a, $v, $fail) => Rut::valido($v) ?: $fail('El RUT no es válido (revise el dígito verificador).')],
@@ -215,6 +256,18 @@ class PostulacionController extends Controller
             'emergencia_email' => ['nullable', 'email', 'max:160'],
             'antecedentes_salud' => ['required', 'string', 'max:2000'],
         ];
+
+        if (! auth()->check()) {
+            $tieneHash = ! empty($borrador['datos']['password_hash']) || ! empty($input['password_hash']);
+            $reglas['password'] = [
+                $tieneHash ? 'nullable' : 'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ];
+        }
+
+        return $reglas;
     }
 
     private function reglasPaso3(): array
@@ -239,6 +292,9 @@ class PostulacionController extends Controller
         return [
             'required' => 'Este campo es obligatorio.',
             'required_if' => 'Este campo es obligatorio.',
+            'password.required' => 'Debe crear una contraseña para su cuenta de acceso.',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
             'email' => 'Ingrese un correo válido.',
             'regex' => 'Ingrese un teléfono válido.',
             'max' => 'Es demasiado largo.',
@@ -342,7 +398,7 @@ class PostulacionController extends Controller
         if (empty($b['acepta'])) {
             return 1;
         }
-        if (empty($b['datos']) || Validator::make($b['datos'], $this->reglasPaso2($b['datos']))->fails()) {
+        if (empty($b['datos']) || Validator::make($b['datos'], $this->reglasPaso2($b['datos'], $b))->fails()) {
             return 2;
         }
         $archivosOk = collect(self::TIPOS_OBLIGATORIOS)->every(

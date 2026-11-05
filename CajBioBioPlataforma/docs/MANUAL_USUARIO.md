@@ -81,16 +81,17 @@ Pulse **Ingresar postulación**.
 **Paso 2 — Datos personales**
 Los campos con asterisco rojo son obligatorios.
 1. **Identificación:** nombre, apellido, RUT, fecha de nacimiento, correo, teléfono, género, nacionalidad, universidad.
-2. **Información de accesibilidad:** indique si presenta alguna discapacidad. Si responde afirmativamente, describa el tipo, grado y apoyos que requiere.
-3. **Domicilio:** región, dirección y comuna. La comuna se habilita después de elegir región.
-4. **Contacto de emergencia:** nombre, vínculo, teléfono y correo.
-5. **Antecedentes de salud:** alergias o condiciones relevantes. Puede escribir "Ninguno".
+2. **Cuenta de acceso:** defina su contraseña personal (mínimo 8 caracteres) y confírmela para ingresar a la plataforma, dar seguimiento a su solicitud y subsanar antecedentes.
+3. **Información de accesibilidad:** indique si presenta alguna discapacidad. Si responde afirmativamente, describa el tipo, grado y apoyos que requiere.
+4. **Domicilio:** región, dirección y comuna. La comuna se habilita después de elegir región.
+5. **Contacto de emergencia:** nombre, vínculo, teléfono y correo.
+6. **Antecedentes de salud:** alergias o condiciones relevantes. Puede escribir "Ninguno".
 
 **Paso 3 — Antecedentes educativos y cédula**
 1. Seleccione universidad, año de carrera (5° año o Egresado) y especialidad.
 2. **Cédula de identidad (obligatoria):** capture el **lado frontal** y el **lado reverso**.
    - **Escanear con cámara:** se abre la cámara del dispositivo y captura la imagen.
-   - **Subir archivo:** JPG o PNG, máximo 5 MB por imagen.
+   - **Subir archivo:** PDF, JPG o PNG, máximo 5 MB por documento.
 3. **Validación automática:** con ambas caras cargadas, pulse el botón de análisis. El sistema revisa:
    - nitidez y legibilidad de ambas imágenes,
    - que ambas caras correspondan a la misma cédula,
@@ -108,11 +109,11 @@ Los campos con asterisco rojo son obligatorios.
 4. Con al menos un consultorio y una fecha, pulse **Revisar postulación**.
 
 **Paso 5 — Resumen y envío**
-1. Revise cada bloque (datos personales, accesibilidad, domicilio, contacto de emergencia, salud, antecedentes educativos, cédula, consultorios y fecha).
+1. Revise cada bloque (datos personales, cuenta de acceso, accesibilidad, domicilio, contacto de emergencia, salud, antecedentes educativos, cédula, consultorios y fecha).
 2. Corrija con **Editar** en el bloque que corresponda.
-3. Pulse **Confirmar y enviar**.
+3. Pulse **Confirmar y enviar postulación**.
 
-**Resultado:** mensaje de postulación enviada. La notificación del resultado llega por correo electrónico en un plazo máximo de 15 días hábiles.
+**Resultado:** Se crea inmediatamente la cuenta de usuario del postulante con la contraseña configurada, se inicia su sesión automáticamente y se le redirige a su portal **Mi Postulación** (`postulante.inicio`), donde puede consultar en tiempo real el estado de revisión de su expediente ante la secretaría.
 
 ---
 

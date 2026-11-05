@@ -38,6 +38,10 @@
             </div>
         </header>
 
+        @if (session('ok'))
+            <div class="alerta alerta-exito" role="status">{{ session('ok') }}</div>
+        @endif
+
         @if (session('aviso'))
             <div class="alerta alerta-info" role="status">{{ session('aviso') }}</div>
         @endif
@@ -46,7 +50,7 @@
             <x-tarjeta :acento="true" class="mp-enviada" aria-labelledby="mp-enviada-titulo">
                 <div class="mp-enviada-cab">
                     <h2 id="mp-enviada-titulo">
-                        @if ($enRevision) Tu postulación fue enviada
+                        @if ($enRevision) Tu postulación fue recibida exitosamente y se encuentra en revisión
                         @elseif ($estado === 'aceptada') Tu postulación fue aceptada
                         @elseif ($estado === 'rechazada') Tu postulación no fue aceptada
                         @else Tu postulación fue retirada @endif

@@ -220,7 +220,7 @@
             if (d) { d.hidden = false; d.querySelector('select').disabled = false; bloque.hidden = false; }
             res.dataset.modo = 'propia';
             res.querySelector('[data-resultado-titulo]').textContent = 'Ingresará a ' + r.dataset.nombre;
-            res.querySelector('[data-resultado-texto]').textContent = 'Se acepta la postulación y se crea la práctica. Si ' + nombre + ' aún no tiene cuenta, sus credenciales temporales se mostrarán una sola vez.';
+            res.querySelector('[data-resultado-texto]').textContent = 'Se acepta la postulación y se crea la práctica. ' + nombre + ' ya cuenta con acceso activo a su portal con su contraseña creada al postular.';
         }
     }
     radios.forEach((r) => r.addEventListener('change', actualizar));

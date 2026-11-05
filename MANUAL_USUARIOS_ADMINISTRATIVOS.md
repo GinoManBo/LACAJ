@@ -158,7 +158,7 @@ Debajo se listan las **Últimas postulaciones** recibidas y las **Prácticas por
      - Si selecciona un consultorio de otra región, pulse el botón naranjo **Derivar a otra región**.
 
 **Resultado:**
-- Si confirmó el ingreso en su región, se crea la práctica en estado **Por iniciar** (calculando automáticamente los 180 días reglamentarios) y el sistema muestra en pantalla la contraseña temporal creada para el postulante.
+- Si confirmó el ingreso en su región, se crea la práctica en estado **Por iniciar** (calculando automáticamente los 180 días reglamentarios). El postulante ya cuenta con acceso activo a su portal con la contraseña que definió al momento de postular.
 - Si derivó a otra región, la postulación pasa a la bandeja de la secretaría de destino junto con sus comentarios.
 
 > **Recomendación:** Antes de derivar a otra región, agregue siempre un comentario indicando el motivo (falta de cupos, cercanía al domicilio, cambio de ciudad). Es la información de contexto que verá la secretaría que recibe el caso.

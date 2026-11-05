@@ -34,6 +34,7 @@ Tras la implementación de los nuevos roles institucionales (`director_regional`
 
 ### 1.1. Postulante (antes "Practicante")
 * `[x]` **Cambio de terminología global:** Se reemplazó el término *"Practicante"* por **"Postulante"** en los menús principales (`layouts/portal.blade.php`), vistas de práctica (`practicante/inicio.blade.php`), cartas, certificados y bandejas directivas/secretaría. Por definición de arquitectura y estabilidad, las rutas internas (`/practicante`, `/admin/practicantes`) se mantienen así para garantizar compatibilidad retroactiva y evitar problemas de enlaces.
+* `[x]` **Aprovisionamiento inmediato de cuenta y eliminación del limbo:** Al ingresar sus datos en el Paso 2, el postulante define su propia contraseña. Al enviar la postulación en el Paso 5, el sistema aprovisiona de inmediato su cuenta de usuario (`rol: 'postulante'`, `debe_cambiar_password: false`), inicia sesión automáticamente y lo redirige a su portal `Mi Postulación` (`postulante.inicio`) para ver en tiempo real el estado de su expediente. Se elimina por completo la entrega manual de contraseñas temporales por parte de Secretaría.
 * `[x]` **Funciones de carga de antecedentes e informe final:** El postulante cuenta con el asistente de 4 pasos en `Postulante\PostulacionController` para subir sus documentos de postulación y con el módulo en `Practicante\PracticanteController::subirInforme` para cargar su Informe Final de Práctica y descargar su Certificado (incluyendo el PDF firmado con FirmaGob) y Resolución.
 
 ### 1.2. Abogado Jefe (antes "Tutor")
