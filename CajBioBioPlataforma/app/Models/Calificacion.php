@@ -11,4 +11,5 @@ class Calificacion extends Model
     const UPDATED_AT = null;
     protected $casts = ['nota' => 'float', 'fecha' => 'date'];
     public function practica() { return $this->belongsTo(Practica::class); }
+    public function registradaPor() { return $this->belongsTo(Usuario::class, 'registrada_por'); }
 }
