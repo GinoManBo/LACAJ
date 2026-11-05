@@ -62,27 +62,36 @@ function mostrarArchivo(bloque, file) {
     const cargada = bloque.querySelector('[data-cargada]');
     const nombre = bloque.querySelector('[data-nombre]');
     if (vista.dataset.url) URL.revokeObjectURL(vista.dataset.url);
-    const url = URL.createObjectURL(file);
-    vista.dataset.url = url;
-    vista.src = url;
-    vista.alt = `Vista previa: ${file.name}`;
-    vista.hidden = false;
+
+    const esPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (esPdf) {
+        vista.hidden = true;
+        zona.classList.remove('con-imagen');
+    } else {
+        const url = URL.createObjectURL(file);
+        vista.dataset.url = url;
+        vista.src = url;
+        vista.alt = `Vista previa: ${file.name}`;
+        vista.hidden = false;
+        zona.classList.add('con-imagen');
+    }
     marcador.hidden = true;
     cargada.hidden = false;
     nombre.textContent = file.name;
-    zona.classList.add('con-imagen');
     input.required = true;
 }
 
 function asignarArchivo(bloque, file) {
     const input = bloque.querySelector('.cedula-input');
-    if (!/^image\/(jpeg|png)$/.test(file.type)) {
-        window.cajMarcarError(input, 'El archivo debe ser una imagen JPG o PNG.');
+    const esPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const esImg = /^image\/(jpeg|png)$/i.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
+    if (!esPdf && !esImg) {
+        window.cajMarcarError(input, 'El archivo debe ser un documento PDF o imagen JPG/PNG.');
         input.value = '';
         return false;
     }
     if (file.size > MAX_IMG) {
-        window.cajMarcarError(input, 'La imagen supera los 5 MB. Intente con una foto de menor tamaño.');
+        window.cajMarcarError(input, 'El archivo supera los 5 MB. Intente con un archivo de menor tamaño.');
         input.value = '';
         return false;
     }

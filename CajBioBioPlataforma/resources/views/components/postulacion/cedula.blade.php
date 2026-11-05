@@ -26,8 +26,8 @@
             Subir archivo
         </button>
     </div>
-    <input type="file" id="{{ $id }}" name="{{ $name }}" class="campo-control cedula-input" accept="image/png,image/jpeg" @required(! $archivo) aria-labelledby="{{ $id }}-etq" aria-describedby="{{ $id }}-ayuda {{ $id }}-error" @if ($error) aria-invalid="true" @endif>
-    <input type="file" class="sr-only" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true" data-nativa>
-    <p id="{{ $id }}-ayuda" class="campo-ayuda">Imagen JPG o PNG, hasta 5 MB. Que se lea bien y no tenga reflejos.</p>
+    <input type="file" id="{{ $id }}" name="{{ $name }}" class="campo-control cedula-input" accept="image/png,image/jpeg,application/pdf,.pdf" @required(! $archivo) aria-labelledby="{{ $id }}-etq" aria-describedby="{{ $id }}-ayuda {{ $id }}-error" @if ($error) aria-invalid="true" @endif>
+    <input type="file" class="sr-only" accept="image/*,application/pdf" capture="environment" tabindex="-1" aria-hidden="true" data-nativa>
+    <p id="{{ $id }}-ayuda" class="campo-ayuda">Documento PDF o imagen JPG/PNG, hasta 5 MB. Que se lea bien y no tenga reflejos.</p>
     <p id="{{ $id }}-error" class="campo-error" role="alert">{{ $error }}</p>
 </div>

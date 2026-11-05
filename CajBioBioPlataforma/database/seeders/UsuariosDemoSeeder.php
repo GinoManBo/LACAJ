@@ -64,8 +64,8 @@ class UsuariosDemoSeeder extends Seeder
             ['Luis', 'Núñez Oviedo', 'ucoe_biobio@cajbiobio.cl', '10000021-0', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
 
             // Revisores Colegiados de UCOE (Octava Región)
-            ['Verónica', 'Cifuentes Matus', 'revisora_veronica@cajbiobio.cl', '10000027-8', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
-            ['Graciela', 'Paredes Saavedra', 'revisora_graciela@cajbiobio.cl', '10000028-6', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
+            ['Verónica', 'Cifuentes Matus', 'revisora_veronica@cajbiobio.cl', '10000027-K', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
+            ['Graciela', 'Paredes Saavedra', 'revisora_graciela@cajbiobio.cl', '10000028-8', 'jefe_ucoe', $regiones['BI'] ?? null, null, false],
 
             // Directores Regionales (Regiones Externas)
             ['Ricardo', 'Salazar Valenzuela', 'director_nuble@cajbiobio.cl', '10000022-9', 'director_regional', $regiones['NB'] ?? null, null, false],

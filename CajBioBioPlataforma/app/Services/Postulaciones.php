@@ -61,26 +61,27 @@ class Postulaciones
                 if ($conflicto) {
                     throw ValidationException::withMessages(['consultorio_id' => 'Ya existe una cuenta con el correo o RUT del postulante. Contacte al administrador.']);
                 }
-                $passwordTemporal = Str::password(10, symbols: false);
-                $datosUsuario = [
-                    'nombre' => $postulante->nombre, 'apellido' => $postulante->apellido,
-                    'email' => $email, 'rut' => $postulante->rut,
-                    // =========================================================================
-                    // UNIFICACIÓN EXPLÍCITA DE ROLES:
-                    // Se preserva y establece el rol unificado 'postulante'.
-                    // La persona continúa siendo la misma y su rol en la plataforma no muta;
-                    // su avance a la fase de práctica lo define su vinculación en la tabla
-                    // 'practicantes' y 'practicas'.
-                    // En caso de que se esté actualizando un perfil con rol previo 'practicante',
-                    // se unifica de forma explícita:
-                    // UPDATE usuarios SET rol = 'postulante' WHERE id = :id;
-                    // =========================================================================
-                    'rol' => 'postulante',
-                    'password' => $passwordTemporal,
-                    'debe_cambiar_password' => true, 'activo' => true, 'creado_por' => $actor->id,
-                ];
-                $usuario = $perfil ? tap($perfil)->update($datosUsuario) : Usuario::create($datosUsuario);
-                $practicante->update(['usuario_id' => $usuario->id]);
+
+                if ($perfil) {
+                    // El postulante ya tiene cuenta activa creada al postular: preservamos su contraseña propia
+                    $usuario = $perfil;
+                    if ($usuario->rol !== 'postulante') {
+                        $usuario->update(['rol' => 'postulante']);
+                    }
+                    $practicante->update(['usuario_id' => $usuario->id]);
+                } else {
+                    // Fallback para datos cargados externamente o sin registro previo
+                    $passwordTemporal = Str::password(10, symbols: false);
+                    $datosUsuario = [
+                        'nombre' => $postulante->nombre, 'apellido' => $postulante->apellido,
+                        'email' => $email, 'rut' => $postulante->rut,
+                        'rol' => 'postulante',
+                        'password' => $passwordTemporal,
+                        'debe_cambiar_password' => true, 'activo' => true, 'creado_por' => $actor->id,
+                    ];
+                    $usuario = Usuario::create($datosUsuario);
+                    $practicante->update(['usuario_id' => $usuario->id]);
+                }
             }
 
             $inicio = $p->fecha_inicio_solicitada->copy();

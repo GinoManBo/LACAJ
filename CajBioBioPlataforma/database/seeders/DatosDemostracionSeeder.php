@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Abogado;
 use App\Models\Calificacion;
+use App\Models\Certificado;
 use App\Models\Comuna;
 use App\Models\Consultorio;
 use App\Models\Documento;
@@ -15,6 +16,7 @@ use App\Models\Practica;
 use App\Models\Practicante;
 use App\Models\Region;
 use App\Models\Usuario;
+use App\Services\CertificadosPractica;
 use App\Support\Notas;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
@@ -64,7 +66,7 @@ class DatosDemostracionSeeder extends Seeder
         Usuario::updateOrCreate(['email' => 'juridica.central@cajbiobio.cl'], [
             'nombre' => 'Verónica',
             'apellido' => 'Sanhueza (Jurídica)',
-            'rut' => '10000037-5',
+            'rut' => '10000037-7',
             'rol' => 'juridica_central',
             'region_id' => $regBiobio->id,
             'password' => '123456',
@@ -79,7 +81,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Camilo',
             apellido: 'Echeverría Solís',
             email: 'postulante@cajbiobio.cl',
-            rut: '10000030-8',
+            rut: '10000030-K',
             universidad: 'Universidad de Concepción',
             region: $regBiobio,
             comuna: $comunaConce,
@@ -102,7 +104,9 @@ class DatosDemostracionSeeder extends Seeder
                 $this->adjuntarDocumento($postulacion->id, null, 'cedula_reverso', 'cedula_reverso.pdf', $user->id);
                 $this->adjuntarDocumento($postulacion->id, null, 'certificado_egreso', 'certificado_egreso.pdf', $user->id);
                 $this->adjuntarDocumento($postulacion->id, null, 'certificado_antecedentes', 'certificado_antecedentes.pdf', $user->id);
-            }
+            },
+            genero: 'masculino',
+            fechaNacimiento: '1998-03-12'
         );
 
         // =========================================================================
@@ -112,7 +116,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Valentina',
             apellido: 'Morales Riquelme',
             email: 'practicante.activo@cajbiobio.cl',
-            rut: '10000031-6',
+            rut: '10000031-8',
             universidad: 'Universidad del Bío-Bío',
             region: $regBiobio,
             comuna: $comunaConce,
@@ -132,6 +136,8 @@ class DatosDemostracionSeeder extends Seeder
 
                 $practicante = Practicante::updateOrCreate(['postulante_id' => $postulante->id], ['usuario_id' => $user->id]);
 
+                $docCarta = $this->adjuntarDocumento($postulacion->id, null, 'carta_presentacion_firmada', 'carta_presentacion_firmada.pdf', $uAbogado1?->id);
+
                 $practica = Practica::updateOrCreate(
                     ['practicante_id' => $practicante->id],
                     [
@@ -141,12 +147,15 @@ class DatosDemostracionSeeder extends Seeder
                         'estado' => 'activa',
                         'fecha_inicio' => today()->subMonths(4),
                         'fecha_termino' => today()->subMonths(4)->addMonths(6),
+                        'carta_presentacion_firmada' => $docCarta->nombre_almacenado,
                         'carta_presentacion_subida_at' => now()->subMonths(4),
                     ]
                 );
 
-                $this->adjuntarDocumento($postulacion->id, $practica->id, 'carta_presentacion_firmada', 'carta_presentacion_firmada.pdf', $uAbogado1?->id);
-            }
+                $docCarta->update(['practica_id' => $practica->id]);
+            },
+            genero: 'femenino',
+            fechaNacimiento: '1997-11-20'
         );
 
         // =========================================================================
@@ -156,7 +165,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Matías',
             apellido: 'Salgado Vega',
             email: 'practicante.termino@cajbiobio.cl',
-            rut: '10000032-4',
+            rut: '10000032-6',
             universidad: 'Universidad Católica de la Santísima Concepción',
             region: $regBiobio,
             comuna: $comunaConce,
@@ -187,7 +196,9 @@ class DatosDemostracionSeeder extends Seeder
                 );
 
                 $this->adjuntarDocumento($postulacion->id, $practica->id, 'informe_final', 'Informe_Final_Practica_Matias_Salgado.pdf', $user->id);
-            }
+            },
+            genero: 'masculino',
+            fechaNacimiento: '1998-07-04'
         );
 
         // =========================================================================
@@ -197,7 +208,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Sofía',
             apellido: 'Henríquez Alarcón',
             email: 'postulante.corte@cajbiobio.cl',
-            rut: '10000033-2',
+            rut: '10000033-4',
             universidad: 'Universidad de Concepción',
             region: $regBiobio,
             comuna: $comunaConce,
@@ -251,7 +262,9 @@ class DatosDemostracionSeeder extends Seeder
                 );
 
                 $this->adjuntarDocumento($postulacion->id, $practica->id, 'informe_final', 'Informe_Sofia_Henriquez.pdf', $user->id);
-            }
+            },
+            genero: 'femenino',
+            fechaNacimiento: '1999-01-18'
         );
 
         // =========================================================================
@@ -261,7 +274,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Gabriel',
             apellido: 'Navarro Sepúlveda',
             email: 'postulante.nuble@cajbiobio.cl',
-            rut: '10000034-0',
+            rut: '10000034-2',
             universidad: 'Universidad de Concepción (Campus Chillán)',
             region: $regNuble,
             comuna: $comunaChillan,
@@ -317,7 +330,9 @@ class DatosDemostracionSeeder extends Seeder
                 );
 
                 $this->adjuntarDocumento($postulacion->id, $practica->id, 'informe_final', 'Informe_Gabriel_Navarro.pdf', $user->id);
-            }
+            },
+            genero: 'masculino',
+            fechaNacimiento: '1997-09-09'
         );
 
         // =========================================================================
@@ -327,7 +342,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Javiera',
             apellido: 'Cárdenas Pino',
             email: 'postulante.firmagob@cajbiobio.cl',
-            rut: '10000035-9',
+            rut: '10000035-0',
             universidad: 'Universidad del Desarrollo',
             region: $regBiobio,
             comuna: $comunaConce,
@@ -383,7 +398,9 @@ class DatosDemostracionSeeder extends Seeder
                 );
 
                 $this->adjuntarDocumento($postulacion->id, $practica->id, 'informe_final', 'Informe_Javiera_Cardenas.pdf', $user->id);
-            }
+            },
+            genero: 'femenino',
+            fechaNacimiento: '1998-12-03'
         );
 
         // =========================================================================
@@ -393,7 +410,7 @@ class DatosDemostracionSeeder extends Seeder
             nombre: 'Rodrigo',
             apellido: 'Sepúlveda Castro',
             email: 'postulante.titulado@cajbiobio.cl',
-            rut: '10000036-7',
+            rut: '10000036-9',
             universidad: 'Universidad de Concepción',
             region: $regBiobio,
             comuna: $comunaConce,
@@ -412,6 +429,8 @@ class DatosDemostracionSeeder extends Seeder
 
                 $practicante = Practicante::updateOrCreate(['postulante_id' => $postulante->id], ['usuario_id' => $user->id]);
 
+                $docCertificado = $this->adjuntarDocumento($postulacion->id, null, 'certificado_firmagob', 'Certificado_Corte_Suprema_Firmado.pdf', $uDirectorGeneral?->id);
+
                 $practica = Practica::updateOrCreate(
                     ['practicante_id' => $practicante->id],
                     [
@@ -426,10 +445,36 @@ class DatosDemostracionSeeder extends Seeder
                         'nivelada_at' => now()->subDays(25),
                         'firmado_director_general_at' => now()->subDays(10),
                         'firmado_director_general_por' => $uDirectorGeneral?->id,
+                        'firmagob_folio' => 'FG-2026-BIOBIO-0042',
+                        'firmagob_url' => 'https://validador.firmagob.gob.cl/validar?folio=FG-2026-BIOBIO-0042',
+                        'certificado_firmagob_id' => $docCertificado->id,
                         'documentos_autorizados' => true,
                         'documentos_autorizados_at' => now()->subDays(5),
                         'despachada_at' => now()->subDays(5),
                         'despachada_por' => $uSecretariaBiobio?->id,
+                    ]
+                );
+
+                $docCertificado->update(['practica_id' => $practica->id]);
+
+                Certificado::firstOrCreate(
+                    ['practica_id' => $practica->id, 'tipo' => CertificadosPractica::CERTIFICADO],
+                    [
+                        'numero_resolucion' => 101,
+                        'anio' => (int) date('Y'),
+                        'documento_id' => $docCertificado->id,
+                        'fecha_emision' => now()->subDays(5)->toDateString(),
+                        'emitido_por' => $uDirectorGeneral?->id,
+                    ]
+                );
+
+                Certificado::firstOrCreate(
+                    ['practica_id' => $practica->id, 'tipo' => CertificadosPractica::RESOLUCION],
+                    [
+                        'numero_resolucion' => 101,
+                        'anio' => (int) date('Y'),
+                        'fecha_emision' => now()->subDays(5)->toDateString(),
+                        'emitido_por' => $uDirectorGeneral?->id,
                     ]
                 );
 
@@ -443,7 +488,9 @@ class DatosDemostracionSeeder extends Seeder
                 );
 
                 $this->adjuntarDocumento($postulacion->id, $practica->id, 'informe_final', 'Informe_Rodrigo_Sepulveda.pdf', $user->id);
-            }
+            },
+            genero: 'masculino',
+            fechaNacimiento: '1996-04-25'
         );
     }
 
@@ -456,7 +503,9 @@ class DatosDemostracionSeeder extends Seeder
         Region $region,
         Comuna $comuna,
         string $telefono,
-        callable $configurar
+        callable $configurar,
+        string $genero = 'masculino',
+        ?string $fechaNacimiento = '1998-05-15'
     ): void {
         $user = Usuario::updateOrCreate(['email' => $email], [
             'nombre' => $nombre,
@@ -469,12 +518,15 @@ class DatosDemostracionSeeder extends Seeder
             'activo' => true,
         ]);
 
-        $postulante = Postulante::updateOrCreate(['rut' => $rut], [
+        $postulante = Postulante::where('email', $email)->orWhere('rut', $rut)->first() ?? new Postulante();
+        $postulante->fill([
+            'rut' => $rut,
             'nombre' => $nombre,
             'apellido' => $apellido,
+            'fecha_nacimiento' => $fechaNacimiento,
             'email' => $email,
             'telefono' => $telefono,
-            'genero' => 'masculino',
+            'genero' => $genero,
             'nacionalidad' => 'Chilena',
             'region_id' => $region->id,
             'comuna_id' => $comuna->id,
@@ -485,6 +537,7 @@ class DatosDemostracionSeeder extends Seeder
             'emergencia_vinculo' => 'Familiar',
             'emergencia_telefono' => '+56911223344',
         ]);
+        $postulante->save();
 
         $configurar($user, $postulante);
     }

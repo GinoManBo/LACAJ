@@ -25,6 +25,7 @@
                     $fila('Nacionalidad', $datos['nacionalidad'] ?? null),
                     $fila('Correo', $datos['email'] ?? null),
                     $fila('Teléfono', $datos['telefono'] ?? null),
+                    $fila('Cuenta de acceso', ! empty($datos['password_hash']) ? 'Contraseña configurada (acceso inmediato)' : (auth()->check() ? 'Sesión activa' : '—')),
                 ] as $f)
                     <div><dt>{{ $f['k'] }}</dt><dd>{{ $f['v'] }}</dd></div>
                 @endforeach
@@ -91,10 +92,10 @@
 
         <form method="POST" action="{{ route('postulacion.enviar') }}" class="envio">
             @csrf
-            <p class="texto-suave">El resultado llegará a <strong>{{ $datos['email'] ?? 'su correo' }}</strong> en un plazo máximo de 15 días hábiles.</p>
+            <p class="texto-suave">Al confirmar, su cuenta quedará creada e ingresará directamente a su portal para revisar el avance de su postulación en tiempo real.</p>
             <div class="acciones-paso">
                 <x-boton tipo="secundario" :href="route('postulacion.paso', 4)">Volver</x-boton>
-                <x-boton type="submit">Confirmar y enviar</x-boton>
+                <x-boton type="submit">Confirmar y enviar postulación</x-boton>
             </div>
         </form>
     </div>

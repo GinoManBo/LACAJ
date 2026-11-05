@@ -121,7 +121,7 @@ class BorradorPostulanteTest extends TestCase
 
         $r = Postulaciones::asignar($p, $sec, Consultorio::where('region_id', $region->id)->value('id'), null, null);
 
-        $this->assertNotNull($r['passwordTemporal']);
+        $this->assertNull($r['passwordTemporal']);
         $this->assertSame(1, Usuario::where('rut', '20000001-3')->count());
         $this->assertSame('postulante', $perfil->fresh()->rol);
         $this->assertSame('ana@mail.cl', $perfil->fresh()->email);

@@ -36,6 +36,17 @@
             </div>
         </fieldset>
 
+        @if (! auth()->check())
+            <fieldset class="bloque">
+                <legend>Cuenta de acceso a la plataforma</legend>
+                <p class="texto-suave bloque-nota">Crea tu contraseña para ingresar a tu cuenta personal, dar seguimiento en vivo a tu postulación y subsanar antecedentes.</p>
+                <div class="rejilla-campos">
+                    <x-campo name="password" label="Contraseña" type="password" :obligatorio="empty($v('password_hash'))" :ayuda="! empty($v('password_hash')) ? 'Contraseña ya configurada. Déjela en blanco si no desea modificarla.' : 'Mínimo 8 caracteres.'" autocomplete="new-password" />
+                    <x-campo name="password_confirmation" label="Confirmar contraseña" type="password" :obligatorio="empty($v('password_hash'))" :ayuda="! empty($v('password_hash')) ? 'Repita la contraseña solo si la está cambiando.' : 'Repita la misma contraseña.'" autocomplete="new-password" />
+                </div>
+            </fieldset>
+        @endif
+
         <fieldset class="bloque">
             <legend>Domicilio</legend>
             <div class="rejilla-campos">
