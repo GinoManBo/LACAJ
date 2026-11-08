@@ -7,7 +7,7 @@
 <section class="portada">
     <div class="contenedor portada-grid">
         <div class="portada-texto">
-            <h1>Práctica profesional para postular al titulo de abogado en la Corporación de Asistencia Judicial del Biobío</h1>
+            <h1>Práctica profesional para postular al título de abogado en la Corporación de Asistencia Judicial del Biobío</h1>
             <p class="portada-bajada">Postula en línea para realizar tu práctica en nuestras oficinas de atención y sigue el estado de tu proceso desde un solo lugar.</p>
             <div class="portada-acciones">
                 @if ($postula)<x-boton :href="route('postulacion.inicio')" class="post-cta">Postular a la práctica</x-boton>@endif
