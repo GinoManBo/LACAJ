@@ -35,14 +35,6 @@ class DirectorRegionalController extends Controller
             return;
         }
 
-        // Revisores colegiados de UCOE en la Región del Biobío
-        if ($u->rol === 'secretaria' && $u->region?->codigo === 'BI') {
-            $nom = mb_strtolower($u->nombre_completo);
-            if (str_contains($nom, 'cifuentes') || str_contains($nom, 'paredes')) {
-                return;
-            }
-        }
-
         abort(403, 'Acceso restringido a Directores Regionales y Jefatura / Revisores de UCOE.');
     }
 
@@ -615,26 +607,36 @@ class DirectorRegionalController extends Controller
         $regionId = $this->regionId($request);
         $region = Region::findOrFail($regionId);
 
-        $esRevisor = in_array($request->user()->rol, ['jefe_ucoe', 'administrador'], true)
-            || ($request->user()->rol === 'secretaria' && $region->codigo === 'BI');
+        $esRevisor = in_array($request->user()->rol, ['jefe_ucoe', 'administrador'], true);
         if (! $esRevisor || $region->codigo !== 'BI') {
             abort(403, 'El submódulo de revisión colegiada es exclusivo de la Jefatura y Revisores de UCOE en la Región del Biobío.');
         }
 
-        $revisorFiltro = $request->query('revisor'); // 'todos', 'luis', 'veronica', 'graciela', 'sin_asignar'
-        $nomUser = mb_strtolower($request->user()->nombre_completo);
-        $esRevisorEspecifico = str_contains($nomUser, 'cifuentes') || str_contains($nomUser, 'paredes');
-        if (! $request->has('revisor') && $esRevisorEspecifico) {
-            $revisorFiltro = str_contains($nomUser, 'cifuentes') ? 'veronica' : 'graciela';
+        $revisores = [];
+        $usuariosUcoe = Usuario::where('rol', 'jefe_ucoe')->where('activo', true)->orderBy('id')->get();
+        foreach ($usuariosUcoe as $ucoe) {
+            $etiqueta = $ucoe->nombre_completo;
+            if (str_contains(mb_strtolower($ucoe->email), 'ucoe_biobio')) {
+                $etiqueta .= ' (Jefe de UCOE)';
+            } else {
+                $etiqueta .= ' (Revisor/a Colegiado/a)';
+            }
+            $revisores[$ucoe->nombre_completo] = $etiqueta;
+        }
+        if (empty($revisores)) {
+            $revisores = [
+                'Luis Núñez Oviedo' => 'Luis Núñez Oviedo (Jefe de UCOE)',
+                'Verónica Cifuentes' => 'Verónica Cifuentes (Revisora Colegiada)',
+                'Graciela Paredes' => 'Graciela Paredes (Revisora Colegiada)',
+            ];
+        }
+
+        $revisorFiltro = $request->query('revisor');
+        if (! $request->has('revisor') && $request->user()->rol === 'jefe_ucoe' && ! str_contains(mb_strtolower($request->user()->email), 'ucoe_biobio')) {
+            $revisorFiltro = $request->user()->nombre_completo;
         }
 
         $q = trim((string) $request->query('q'));
-
-        $revisores = [
-            'Luis Núñez Oviedo' => 'Luis Núñez Oviedo (Jefe de UCOE)',
-            'Verónica Cifuentes' => 'Verónica Cifuentes (Revisora Colegiada)',
-            'Graciela Paredes' => 'Graciela Paredes (Revisora Colegiada)',
-        ];
 
         $base = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $regionId))
             ->whereHas('evaluacion')
@@ -656,7 +658,8 @@ class DirectorRegionalController extends Controller
                     $w->where('revisor_colegiado_nombre', 'like', "%$revisorFiltro%")
                       ->orWhereHas('revisorColegiado', function ($u) use ($revisorFiltro) {
                           $u->where('nombre', 'like', "%$revisorFiltro%")
-                            ->orWhere('apellido', 'like', "%$revisorFiltro%");
+                            ->orWhere('apellido', 'like', "%$revisorFiltro%")
+                            ->orWhereRaw("CONCAT(nombre, ' ', apellido) LIKE ?", ["%$revisorFiltro%"]);
                       });
                 });
             }
@@ -678,23 +681,30 @@ class DirectorRegionalController extends Controller
      */
     private function buscarRevisorUsuario(string $nombre): ?Usuario
     {
-        $nom = mb_strtolower($nombre);
-        if (str_contains($nom, 'luis') || str_contains($nom, 'núñez') || str_contains($nom, 'nunez')) {
-            return Usuario::where('email', 'ucoe_biobio@cajbiobio.cl')
-                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Luis%')->where('apellido', 'like', '%Núñez%'))
-                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Luis%')->where('apellido', 'like', '%Nunez%'))
-                ->first();
+        if (ctype_digit($nombre)) {
+            return Usuario::whereIn('rol', ['jefe_ucoe', 'administrador'])->find((int) $nombre);
         }
-        if (str_contains($nom, 'verónica') || str_contains($nom, 'veronica') || str_contains($nom, 'cifuentes')) {
-            return Usuario::where('email', 'revisora_veronica@cajbiobio.cl')
-                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Verónica%')->where('apellido', 'like', '%Cifuentes%'))
-                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Veronica%')->where('apellido', 'like', '%Cifuentes%'))
-                ->first();
+
+        $limpio = trim($nombre);
+
+        $revisor = Usuario::whereIn('rol', ['jefe_ucoe', 'administrador'])
+            ->where(function ($q) use ($limpio) {
+                $q->whereRaw("CONCAT(nombre, ' ', apellido) LIKE ?", ["%{$limpio}%"])
+                  ->orWhere('email', $limpio);
+            })
+            ->first();
+
+        if ($revisor) {
+            return $revisor;
         }
-        if (str_contains($nom, 'graciela') || str_contains($nom, 'paredes')) {
-            return Usuario::where('email', 'revisora_graciela@cajbiobio.cl')
-                ->orWhere(fn ($q) => $q->where('nombre', 'like', '%Graciela%')->where('apellido', 'like', '%Paredes%'))
-                ->first();
+
+        $palabras = array_filter(explode(' ', $limpio));
+        if (! empty($palabras)) {
+            $q = Usuario::whereIn('rol', ['jefe_ucoe', 'administrador']);
+            foreach ($palabras as $p) {
+                $q->where(fn ($sub) => $sub->where('nombre', 'like', "%{$p}%")->orWhere('apellido', 'like', "%{$p}%"));
+            }
+            return $q->first();
         }
 
         return null;
@@ -713,7 +723,16 @@ class DirectorRegionalController extends Controller
             ->findOrFail($id);
 
         $datos = $request->validate([
-            'revisor' => ['required', 'string', 'in:Luis Núñez Oviedo,Verónica Cifuentes,Graciela Paredes'],
+            'revisor' => [
+                'required',
+                'string',
+                'max:120',
+                function ($attribute, $value, $fail) {
+                    if (! $this->buscarRevisorUsuario($value)) {
+                        $fail('El revisor seleccionado no es válido o no cuenta con rol de Jefatura/Revisor de UCOE.');
+                    }
+                },
+            ],
         ]);
 
         $revisorUsuario = $this->buscarRevisorUsuario($datos['revisor']);
@@ -754,7 +773,16 @@ class DirectorRegionalController extends Controller
         $datos = $request->validate([
             'practicas' => ['required', 'array', 'min:1'],
             'practicas.*' => ['integer'],
-            'revisor' => ['required', 'string', 'in:Luis Núñez Oviedo,Verónica Cifuentes,Graciela Paredes'],
+            'revisor' => [
+                'required',
+                'string',
+                'max:120',
+                function ($attribute, $value, $fail) {
+                    if (! $this->buscarRevisorUsuario($value)) {
+                        $fail('El revisor seleccionado no es válido o no cuenta con rol de Jefatura/Revisor de UCOE.');
+                    }
+                },
+            ],
         ]);
 
         $revisorUsuario = $this->buscarRevisorUsuario($datos['revisor']);

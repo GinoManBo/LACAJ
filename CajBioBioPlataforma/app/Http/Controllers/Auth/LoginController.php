@@ -9,6 +9,7 @@ use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class LoginController extends Controller
 {
@@ -34,32 +35,97 @@ class LoginController extends Controller
             'password.required' => 'Ingrese su contraseña.',
         ]);
 
-        $usuario = Usuario::where('rut', Rut::normalizar($datos['rut']))->first();
+        $rutNormalizado = Rut::normalizar($datos['rut']);
+        $throttleKey = 'login:'.$rutNormalizado.'|'.$request->ip();
         $invalidas = ['rut' => 'RUT o contraseña incorrectos.'];
 
+        // 1. Verificación de Rate Limiting por IP + RUT para evitar ataques de fuerza bruta y DoS
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_INTENTOS)) {
+            $segundos = RateLimiter::availableIn($throttleKey);
+            Auditoria::registrar('auth.login_bloqueado', 'usuario', null, [
+                'rut' => $rutNormalizado,
+                'motivo' => 'exceso_intentos_ip',
+                'segundos_restantes' => $segundos,
+            ]);
+
+            return back()->withErrors([
+                'rut' => "Demasiados intentos fallidos desde esta conexión. Por favor intente nuevamente en {$segundos} segundos.",
+            ])->onlyInput('rut');
+        }
+
+        $usuario = Usuario::where('rut', $rutNormalizado)->first();
+
+        // 2. Si el usuario no existe: respuesta genérica y registro de auditoría de fallo
         if (! $usuario) {
+            RateLimiter::hit($throttleKey, self::BLOQUEO_MINUTOS * 60);
+            Auditoria::registrar('auth.login_fallido', 'usuario', null, [
+                'rut' => $rutNormalizado,
+                'motivo' => 'usuario_no_encontrado',
+            ]);
+
             return back()->withErrors($invalidas)->onlyInput('rut');
         }
-        if ($usuario->bloqueado_hasta && $usuario->bloqueado_hasta->isFuture()) {
-            return back()->withErrors(['rut' => 'Cuenta bloqueada temporalmente por demasiados intentos fallidos.'])->onlyInput('rut');
-        }
-        if (! $usuario->activo) {
-            return back()->withErrors(['rut' => 'Cuenta desactivada. Contacte al administrador.'])->onlyInput('rut');
-        }
-        if (! $usuario->password || ! Hash::check($datos['password'], $usuario->password)) {
-            $intentos = $usuario->intentos_fallidos + 1;
+
+        // 3. Verificación de credenciales (contraseña)
+        $passwordValida = $usuario->password && Hash::check($datos['password'], $usuario->password);
+
+        if (! $passwordValida) {
+            RateLimiter::hit($throttleKey, self::BLOQUEO_MINUTOS * 60);
+            $intentosUsuario = $usuario->intentos_fallidos + 1;
+
+            $bloqueadoHasta = null;
+            if ($intentosUsuario >= self::MAX_INTENTOS) {
+                $bloqueadoHasta = now()->addMinutes(self::BLOQUEO_MINUTOS);
+            }
+
             $usuario->forceFill([
-                'intentos_fallidos' => $intentos,
-                'bloqueado_hasta' => $intentos >= self::MAX_INTENTOS ? now()->addMinutes(self::BLOQUEO_MINUTOS) : null,
+                'intentos_fallidos' => $intentosUsuario,
+                'bloqueado_hasta' => $bloqueadoHasta,
             ])->save();
 
+            Auditoria::registrar('auth.login_fallido', 'usuario', $usuario->id, [
+                'rut' => $rutNormalizado,
+                'motivo' => 'password_incorrecta',
+                'intentos' => $intentosUsuario,
+            ], $usuario->id);
+
+            if ($bloqueadoHasta) {
+                Auditoria::registrar('auth.bloqueo', 'usuario', $usuario->id, [
+                    'rut' => $rutNormalizado,
+                    'bloqueado_hasta' => $bloqueadoHasta->toIso8601String(),
+                    'intentos' => $intentosUsuario,
+                ], $usuario->id);
+            }
+
+            // Mensaje idéntico y genérico para prevenir enumeración de usuarios
             return back()->withErrors($invalidas)->onlyInput('rut');
         }
 
-        $usuario->forceFill(['intentos_fallidos' => 0, 'bloqueado_hasta' => null, 'ultimo_acceso' => now()])->save();
+        // 4. Si la contraseña es válida pero la cuenta está desactivada administrativamente:
+        if (! $usuario->activo) {
+            Auditoria::registrar('auth.login_fallido', 'usuario', $usuario->id, [
+                'rut' => $rutNormalizado,
+                'motivo' => 'cuenta_desactivada',
+            ], $usuario->id);
+
+            return back()->withErrors(['rut' => 'Su cuenta se encuentra desactivada. Contacte al administrador.'])->onlyInput('rut');
+        }
+
+        // 5. Autenticación exitosa:
+        // Se limpian los intentos fallidos, el bloqueo temporal y el limitador de tasa
+        RateLimiter::clear($throttleKey);
+        $usuario->forceFill([
+            'intentos_fallidos' => 0,
+            'bloqueado_hasta' => null,
+            'ultimo_acceso' => now(),
+        ])->save();
+
         Auth::login($usuario);
         $request->session()->regenerate();
-        Auditoria::registrar('auth.login', 'usuario', $usuario->id);
+        Auditoria::registrar('auth.login', 'usuario', $usuario->id, [
+            'rut' => $rutNormalizado,
+            'rol' => $usuario->rol,
+        ], $usuario->id);
 
         return redirect()->intended($usuario->portalInicio());
     }

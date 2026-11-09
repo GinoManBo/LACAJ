@@ -596,3 +596,82 @@ El perfil de **Administrador General** corresponde al usuario central superior e
       * **Ficha del postulante (`resources/views/tutor/practicante.blade.php`):** Se agregó un bloque informativo dentro de la tarjeta de datos personales indicando el estado oficial, la fecha y hora de subida por secretaría, el número de folio en archivos institucionales y un botón directo de descarga/visualización.
       * **Bandeja de postulantes (`resources/views/tutor/inicio.blade.php`):** En la tabla de postulantes, la columna de estado incorpora el badge interactivo `✓ Carta firmada` con enlace directo al documento PDF.
 
+
+23. **Remediación de Seguridad Crítica: Prevención de Sobrescritura de Cuentas, Degradación de Rol y Enumeración de Cuentas Institucionales:**
+    * **Vulnerabilidad Previa:**
+      * En `PostulacionController::enviar`, cuando un usuario no autenticado completaba el formulario público `/postular`, el sistema buscaba si existía un usuario con el RUT ingresado (`Usuario::where('rut', $rut)->first()`). Si existía, actualizaba sin autenticación previa sus credenciales (`email`, `password`), forzaba `'rol' => 'postulante'` e iniciaba sesión de inmediato con `Auth::login($usuario)`.
+      * Esto posibilitaba el secuestro de cuentas de postulantes previos y el sabotaje o bloqueo de cuentas de funcionarios institucionales (Administrador, Directores, Secretarias, Abogados), degradando sus privilegios y privándolos de acceso a sus paneles.
+    * **Corrección Aplicada:**
+      1. **Validación Preventiva en Paso 2 (`reglasPaso2`):**
+         * Si el usuario no está autenticado (`! auth()->check()`), se valida que el RUT normalizado no exista previamente en la tabla `usuarios`.
+         * Se valida que el correo electrónico no exista en la tabla `usuarios` (`Rule::unique('usuarios', 'email')`).
+         * Si el usuario está autenticado (postulante logueado realizando una repostulación legítima), se omite la restricción de RUT (el cual proviene inmutable de su sesión activa) e ignora su propio ID en la verificación de correo (`Rule::unique('usuarios', 'email')->ignore(auth()->id())`).
+      2. **Neutralización de Divulgación de Información y Enumeración (Information Disclosure / Anti-Enumeration):**
+         * Bajo ninguna circunstancia se emiten mensajes que distingan roles institucionales (ej. *«El RUT ingresado corresponde a un usuario institucional...»*).
+         * Se estandarizó un mensaje de error estrictamente uniforme y genérico para cualquier cuenta preexistente: *«Ya existe una cuenta registrada con este RUT. Si ya tiene cuenta en la plataforma, por favor inicie sesión.»* y *«Ya existe una cuenta registrada con este correo electrónico. Por favor inicie sesión o utilice otra dirección de correo.»*. De este modo, un atacante no puede inferir si un RUT o correo corresponde a un funcionario administrativo o a un postulante.
+      3. **Blindaje Defensivo en Transacción de Envío (`enviar`):**
+         * Se eliminó definitivamente el bloque `$usuario->update([... 'rol' => 'postulante'])`.
+         * Para solicitudes no autenticadas, se verifica defensivamente antes de la transacción que ni el RUT ni el correo existan en `usuarios`.
+         * Solo se realiza `Usuario::create(...)` para nuevos postulantes genuinos. Si el postulante ya está autenticado, se utiliza `$usuario = $request->user()` preservando íntegramente sus credenciales, perfil y privilegios.
+
+
+24. **Remediación de Confianza Irrestricta en Proxies (`trustProxies`) y Prevención de Suplantación de IP:**
+    * **Vulnerabilidad Previa:**
+      * En `bootstrap/app.php`, la instrucción `$middleware->trustProxies(at: "*")` instruía a Laravel a confiar ciegamente en cabeceras `X-Forwarded-For` de cualquier origen, permitiendo a clientes externos falsificar su IP de origen en la tabla inmutable de auditoría (`Auditoria::registrar()`) y eludir las restricciones de límite de peticiones (`throttle:10,1` en `/ingresar` y `/postular/enviar`) rotando direcciones ficticias.
+    * **Corrección Aplicada:**
+      * Se eliminó el comodín irrestricto `*` en `bootstrap/app.php`.
+      * Se parametrizó la lista de proxies de confianza mediante la variable de entorno `TRUSTED_PROXIES`, aplicando un fallback seguro a direcciones locales (`['127.0.0.1', '::1']`) si no se define.
+      * Se especificaron las cabeceras exactas de reenvío admitidas (`HEADER_X_FORWARDED_FOR`, `HOST`, `PORT`, `PROTO`, `AWS_ELB`).
+      * Se documentó y agregó `TRUSTED_PROXIES` en `.env.example` y `.env` con guía para entornos con Nginx, Docker o balanceadores externos.
+      * La corrección es completamente transparente para los usuarios finales y no altera ni restringe el acceso de ningún postulante ni funcionario desde internet o redes externas.
+
+
+25. **Remediación de Autorización Basada en Texto Plano y Eliminación de Rol Secretaria en Portal Directivo:**
+    * **Vulnerabilidad Previa:**
+      * En `DirectorRegionalController::autorizar` y `routes/portales/director.php`, se permitía el acceso al portal directivo a cualquier usuario con rol `secretaria` de la Región del Biobío cuyo nombre o apellido contuviera `'cifuentes'` o `'paredes'` mediante `str_contains()`.
+      * Esto provocaba escalada de privilegios indebida (cualquier secretaria con esos apellidos adquiría facultades de Director Regional para visar y modificar calificaciones) y al mismo tiempo bloqueaba a cualquier nueva funcionaria revisora de UCOE con apellido diferente.
+    * **Corrección Aplicada:**
+      * En `routes/portales/director.php`, se eliminó el rol `'secretaria'` del middleware de rutas directivas, quedando estrictamente limitado a `middleware('rol:director_regional,jefe_ucoe,administrador')`.
+      * En `DirectorRegionalController::autorizar`, se eliminó la comprobación de texto plano sobre nombres/apellidos, gobernando el acceso de forma pura mediante RBAC (`rolesPermitidos = ['director_regional', 'jefe_ucoe', 'administrador']`).
+      * En `DirectorRegionalController::colegiada`, se eliminó la condición de secretaria y se dinamizó la lista de revisores consultando los usuarios activos con rol `jefe_ucoe` en la base de datos (`Usuario::where('rol', 'jefe_ucoe')`), eliminando el hardcodeo de nombres en controladores, validaciones y vistas.
+      * En `buscarRevisorUsuario`, `asignarRevisor` y `asignarRevisoresLote`, la resolución y validación de revisores se realiza contra la entidad `Usuario` con rol `jefe_ucoe`/`administrador`, permitiendo que cualquier nuevo/a funcionario/a asignado a UCOE desde el panel administrativo quede automáticamente operativo/a sin tocar código.
+      * En `resources/views/director/colegiada.blade.php`, se dinamizó el selector de filtrado y el texto descriptivo para reflejar al equipo colegiado sin atarse a apellidos específicos.
+
+
+26. **Consistencia de Permisos en DocumentoController para Secretaría Biobío (Jurídica Central):**
+    * **Problema Previo:**
+      * En `DocumentoController::puedeVer`, para el rol `'secretaria'` se exigía estrictamente que la región del documento coincidiera con la región del usuario (`$regionDoc === $u->region_id`).
+      * Sin embargo, las secretarias de la Región del Biobío (Sede Central Concepción) ejercen el rol unificado de Secretaría Jurídica Central (`Scope::esBiobioCentral($u)`). Al revisar expedientes remitidos desde otras regiones de la macrozona (Ñuble, Araucanía, Los Ríos, Los Lagos o Aysén) en `/secretaria/juridica` o `/secretaria/historial`, el sistema arrojaba un error 404 al intentar abrir o descargar los documentos adjuntos (cédulas de identidad, certificados de egreso, etc.) por pertenecer a otra región.
+    * **Corrección Aplicada:**
+      * En `DocumentoController::puedeVer`, se integró `Scope::esBiobioCentral($u)` para el rol `'secretaria'`, permitiendo a las secretarias de la Sede Central Biobío visualizar y descargar documentos de expedientes remitidos desde cualquier región.
+      * Se preservó la restricción territorial para las secretarias de regiones externas (Ñuble, Araucanía, Los Ríos, Los Lagos, Aysén), quienes continúan limitadas estrictamente a los documentos pertenecientes a su propia jurisdicción regional.
+      * En `Scope::esBiobioCentral`, se robusteció la comprobación para evaluar tanto la relación cargada `$u->region` como el identificador directo `$u->region_id` contra la Región del Biobío (`BI`).
+
+
+27. **Remediación de Enumeración de Usuarios, Bloqueo Inducido (DoS) y Registro de Auditoría en Autenticación:**
+    * **Vulnerabilidad Previa:**
+      * En `LoginController::entrar`, el sistema entregaba mensajes diferenciados ante credenciales erróneas, cuentas desactivadas o cuentas bloqueadas, permitiendo enumerar si un RUT existía y en qué estado se encontraba.
+      * No existía trazabilidad en la tabla `auditoria` para los intentos fallidos de autenticación ni para los eventos de bloqueo.
+      * El bloqueo por 5 intentos fallidos operaba de forma global sobre la columna `usuarios.bloqueado_hasta` sin discriminar la IP de origen, permitiendo a un atacante conociendo el RUT público de un funcionario (Director, Administrador, etc.) enviar 5 peticiones erróneas cada 15 minutos para mantener permanentemente denegado el acceso al usuario legítimo (Account Lockout DoS).
+    * **Corrección Aplicada:**
+      * **Prevención de Enumeración (Anti-Enumeration):** Se unificó el mensaje de error ante cualquier fallo de credenciales: `'RUT o contraseña incorrectos.'`. El estado de cuenta desactivada solo se revela si el usuario proporciona la contraseña correcta, imposibilitando inferir la existencia del usuario mediante ataques de diccionario o fuerza bruta.
+      * **Protección contra DoS por Bloqueo Inducido:** Se implementó control de tasa mediante `RateLimiter` acoplado al par `RUT + IP`. Cuando una IP particular supera 5 fallos para un RUT determinado, esa IP es bloqueada temporalmente durante 15 minutos. Si el funcionario legítimo se conecta desde otra dirección de red e ingresa su contraseña válida, el sistema autentica exitosamente al usuario y limpia cualquier contador de fallos provocado por el atacante.
+      * **Auditoría Completa de Seguridad:** Se añadieron registros inmediatos e inmutables en `auditoria`:
+        * `auth.login_fallido`: Registra cada fallo de ingreso con el RUT, motivo interno (`usuario_no_encontrado`, `password_incorrecta`, `cuenta_desactivada`), IP, User-Agent y número de intentos.
+        * `auth.bloqueo`: Registra el momento en que se activa el bloqueo temporal por límite de intentos.
+        * `auth.login_bloqueado`: Registra intentos subsecuentes provenientes de IPs restringidas.
+
+
+28. **Cifrado de Sesiones en Base de Datos e Inyección Global de Cabeceras HTTP de Seguridad:**
+    * **Vulnerabilidad Previa:**
+      * En `.env` y `config/session.php`, la directiva `SESSION_ENCRYPT=false` provocaba que la carga útil (`payload`) de las sesiones en la tabla `sessions` —que almacena borradores temporales con datos sensibles como RUT, dirección, antecedentes de salud y contactos de emergencia— se guardara en Base64 sin encriptar, vulnerable ante accesos no autorizados a la base de datos o volcados de respaldo.
+      * No existía un middleware que inyectara cabeceras de endurecimiento HTTP en vistas HTML y rutas web, exponiendo la plataforma a ataques de clickjacking, robo de sesión en iframes y sniffing de tipos MIME.
+    * **Corrección Aplicada:**
+      * **Cifrado Fuerte de Sesiones:** Se activó `SESSION_ENCRYPT=true` en `.env`, `.env.example` y por defecto en `config/session.php`. Laravel cifra y descifra automáticamente todo el contenido de la tabla `sessions` con AES-256-CBC utilizando la clave `APP_KEY`.
+      * **Middleware Global de Seguridad (`CabecerasSeguridad`):** Se creó `app/Http/Middleware/CabecerasSeguridad.php` y se registró globalmente mediante `$middleware->append(CabecerasSeguridad::class)` en `bootstrap/app.php`.
+      * **Cabeceras HTTP Inyectadas en Toda Respuesta:**
+        * `X-Frame-Options: SAMEORIGIN`: Bloquea la incrustación en iframes de terceros para prevenir Clickjacking (CWE-1021).
+        * `X-Content-Type-Options: nosniff`: Fuerza al navegador a respetar estrictamente los tipos MIME y previene ataques de MIME-sniffing (CWE-79).
+        * `Referrer-Policy: strict-origin-when-cross-origin`: Impide la filtración de URLs internas en enlaces externos salientes.
+        * `Permissions-Policy: camera=(), microphone=(), geolocation=()`: Restringe APIs sensibles del navegador.
+

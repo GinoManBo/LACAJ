@@ -145,6 +145,17 @@ class PostulacionController extends Controller
             return redirect()->route('postulacion.paso', 2)->withErrors(['rut' => 'Ya cuenta con una práctica en curso o asignada actualmente.']);
         }
 
+        // Verificación de seguridad para postulantes no autenticados:
+        // Evita colisiones, manipulación de estado o intentos de sobrescribir cuentas preexistentes
+        if (! auth()->check()) {
+            $emailNormalizado = mb_strtolower($d['email']);
+            if (Usuario::where('rut', $rut)->orWhere('email', $emailNormalizado)->exists()) {
+                return redirect()->route('postulacion.paso', 2)->withErrors([
+                    'rut' => 'Ya existe una cuenta registrada con este RUT o correo electrónico. Por favor inicie sesión.',
+                ]);
+            }
+        }
+
         $regionId = Consultorio::findOrFail($b['consultorios'][0])->region_id;
 
         $postulacion = DB::transaction(function () use ($b, $d, $rut, $regionId, $request) {
@@ -161,34 +172,22 @@ class PostulacionController extends Controller
                 'emergencia_telefono' => $d['emergencia_telefono'], 'emergencia_email' => $d['emergencia_email'] ?? null,
             ]);
 
-            // Creación o vinculación inmediata de cuenta de usuario (sin limbo ni contraseñas temporales)
+            // Creación inmediata de cuenta de usuario solo para nuevos postulantes no autenticados
             if (! auth()->check()) {
-                $usuario = Usuario::where('rut', $rut)->first();
                 $email = mb_strtolower($d['email']);
                 $passwordHash = $d['password_hash'] ?? (! empty($d['password']) ? Hash::make($d['password']) : Hash::make(Str::random(16)));
 
-                if ($usuario) {
-                    $usuario->update([
-                        'nombre' => $d['nombre'],
-                        'apellido' => $d['apellido'],
-                        'email' => $email,
-                        'password' => $passwordHash,
-                        'rol' => 'postulante',
-                        'debe_cambiar_password' => false,
-                        'activo' => true,
-                    ]);
-                } else {
-                    $usuario = Usuario::create([
-                        'nombre' => $d['nombre'],
-                        'apellido' => $d['apellido'],
-                        'rut' => $rut,
-                        'email' => $email,
-                        'password' => $passwordHash,
-                        'rol' => 'postulante',
-                        'debe_cambiar_password' => false,
-                        'activo' => true,
-                    ]);
-                }
+                $usuario = Usuario::create([
+                    'nombre' => $d['nombre'],
+                    'apellido' => $d['apellido'],
+                    'rut' => $rut,
+                    'email' => $email,
+                    'password' => $passwordHash,
+                    'rol' => 'postulante',
+                    'debe_cambiar_password' => false,
+                    'activo' => true,
+                ]);
+
                 Auth::login($usuario);
                 $request->session()->regenerate();
             } else {
@@ -271,6 +270,16 @@ class PostulacionController extends Controller
         ];
 
         if (! auth()->check()) {
+            $reglas['rut'][] = function ($attribute, $value, $fail) {
+                if (! Rut::valido($value)) {
+                    return;
+                }
+                if (Usuario::where('rut', Rut::normalizar($value))->exists()) {
+                    $fail('Ya existe una cuenta registrada con este RUT. Si ya tiene cuenta en la plataforma, por favor inicie sesión.');
+                }
+            };
+            $reglas['email'][] = Rule::unique('usuarios', 'email');
+
             $tieneHash = ! empty($borrador['datos']['password_hash']) || ! empty($input['password_hash']);
             $reglas['password'] = [
                 $tieneHash ? 'nullable' : 'required',
@@ -278,6 +287,8 @@ class PostulacionController extends Controller
                 'min:8',
                 'confirmed',
             ];
+        } else {
+            $reglas['email'][] = Rule::unique('usuarios', 'email')->ignore(auth()->id());
         }
 
         return $reglas;
@@ -310,6 +321,7 @@ class PostulacionController extends Controller
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.confirmed' => 'La confirmación de la contraseña no coincide.',
             'email' => 'Ingrese un correo válido.',
+            'email.unique' => 'Ya existe una cuenta registrada con este correo electrónico. Por favor inicie sesión o utilice otra dirección de correo.',
             'regex' => 'Ingrese un teléfono válido.',
             'max' => 'Es demasiado largo.',
             'in' => 'Seleccione una opción válida.',
