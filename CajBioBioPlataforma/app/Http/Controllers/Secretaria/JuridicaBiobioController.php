@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Secretaria;
 
 use App\Http\Controllers\Controller;
 use App\Models\Calificacion;
+use App\Models\Certificado;
 use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Region;
@@ -39,8 +40,82 @@ class JuridicaBiobioController extends Controller
     }
 
     /**
-     * Pantalla 1 (Antes de la práctica):
-     * Supervisión Nacional de Postulaciones.
+     * Construye la consulta base para supervisión y exportación de postulantes a nivel nacional,
+     * permitiendo filtrar por término de búsqueda, origen territorial, región y estado procesal.
+     */
+    private function queryPostulaciones(Request $request)
+    {
+        $q = trim((string) $request->query('q'));
+        $origen = $request->query('origen'); // 'todos', 'local_biobio', 'externo'
+        $regionId = $request->query('region_id');
+        $estado = $request->query('estado');
+
+        $base = Postulacion::with([
+            'postulante.comuna',
+            'region',
+            'consultorioAsignado',
+            'preferencias.consultorio',
+            'practica.consultorio.region',
+            'practica.evaluacion',
+            'practica.calificaciones',
+            'notas',
+        ]);
+
+        if ($q !== '') {
+            $base->whereHas('postulante', fn ($p) => $p
+                ->where('nombre', 'like', "%$q%")
+                ->orWhere('apellido', 'like', "%$q%")
+                ->orWhere('rut', 'like', "%$q%")
+                ->orWhere('universidad', 'like', "%$q%"));
+        }
+
+        if ($origen === 'local_biobio') {
+            $base->whereHas('region', fn ($r) => $r->where('codigo', 'BI'));
+        } elseif ($origen === 'externo') {
+            $base->whereHas('region', fn ($r) => $r->where('codigo', '!=', 'BI'));
+        }
+
+        if ($regionId && ctype_digit((string) $regionId)) {
+            $base->where('region_id', (int) $regionId);
+        }
+
+        if ($estado && $estado !== 'todos') {
+            if ($estado === 'en_proceso') {
+                $base->where(function ($sub) {
+                    $sub->where('estado', 'pendiente')
+                        ->orWhereHas('practica', fn ($pr) => $pr->whereIn('estado', ['por_iniciar', 'activa']));
+                });
+            } elseif ($estado === 'terminados') {
+                $base->whereHas('practica', fn ($pr) => $pr->whereIn('estado', ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial']));
+            } elseif ($estado === 'pendiente') {
+                $base->where('estado', 'pendiente');
+            } elseif ($estado === 'rechazada') {
+                $base->where('estado', 'rechazada');
+            } elseif ($estado === 'activa') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'activa'));
+            } elseif ($estado === 'por_iniciar') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'por_iniciar'));
+            } elseif ($estado === 'finalizada') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'finalizada'));
+            } elseif ($estado === 'remitida_biobio') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'remitida_biobio'));
+            } elseif ($estado === 'nivelada_biobio') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'nivelada_biobio'));
+            } elseif ($estado === 'cerrada_historial') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'cerrada_historial'));
+            } elseif ($estado === 'cancelada') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'cancelada'));
+            } elseif ($estado === 'rechazada_sancion') {
+                $base->whereHas('practica', fn ($pr) => $pr->where('estado', 'rechazada_sancion'));
+            }
+        }
+
+        return $base;
+    }
+
+    /**
+     * Pantalla 1 (Supervisión Nacional):
+     * Supervisión Nacional de Postulantes en todos sus estados.
      * Gestión directa y asignación para la Región del Biobío;
      * Modo solo lectura para postulaciones de regiones externas.
      */
@@ -51,124 +126,271 @@ class JuridicaBiobioController extends Controller
         $q = trim((string) $request->query('q'));
         $origen = $request->query('origen'); // 'todos', 'local_biobio', 'externo'
         $regionId = $request->query('region_id');
+        $estado = $request->query('estado');
 
-        $base = Postulacion::with(['postulante', 'region', 'preferencias.consultorio'])
-            ->where('estado', 'pendiente');
+        $base = $this->queryPostulaciones($request);
+        $postulaciones = $base->orderByDesc('fecha_postulacion')->orderByDesc('id')->get();
 
-        if ($q !== '') {
-            $base->whereHas('postulante', fn ($p) => $p
-                ->where('nombre', 'like', "%$q%")
-                ->orWhere('apellido', 'like', "%$q%")
-                ->orWhere('rut', 'like', "%$q%")
-                ->orWhere('universidad', 'like', "%$q%"));
-        }
-
-        if ($origen === 'local_biobio') {
-            $base->whereHas('region', fn ($r) => $r->where('codigo', 'BI'));
-        } elseif ($origen === 'externo') {
-            $base->whereHas('region', fn ($r) => $r->where('codigo', '!=', 'BI'));
-        }
-
-        if ($regionId && ctype_digit((string) $regionId)) {
-            $base->where('region_id', (int) $regionId);
-        }
-
-        $postulaciones = $base->orderBy('fecha_postulacion')->orderBy('id')->get();
+        $ruts = $postulaciones->pluck('postulante.rut')->filter()->unique()->values();
+        $cancelacionesPorRut = $ruts->isNotEmpty()
+            ? Practica::where('estado', 'cancelada')
+                ->where(function ($query) use ($ruts) {
+                    $query->whereHas('practicante.postulante', fn ($q) => $q->whereIn('rut', $ruts))
+                        ->orWhereHas('postulacion.postulante', fn ($q) => $q->whereIn('rut', $ruts));
+                })
+                ->with(['consultorio', 'canceladaPor'])
+                ->orderByDesc('cancelacion_fecha')
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy(function ($pr) {
+                    return $pr->practicante?->postulante?->rut ?? $pr->postulacion?->postulante?->rut;
+                })
+            : collect();
 
         $totales = [
+            'total' => Postulacion::count(),
             'pendientes_total' => Postulacion::where('estado', 'pendiente')->count(),
-            'locales_biobio' => Postulacion::where('estado', 'pendiente')->whereHas('region', fn ($r) => $r->where('codigo', 'BI'))->count(),
-            'externos' => Postulacion::where('estado', 'pendiente')->whereHas('region', fn ($r) => $r->where('codigo', '!=', 'BI'))->count(),
+            'activas_total' => Practica::where('estado', 'activa')->count(),
+            'terminadas_total' => Practica::whereIn('estado', ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial'])->count(),
+            'locales_biobio' => Postulacion::whereHas('region', fn ($r) => $r->where('codigo', 'BI'))->count(),
+            'externos' => Postulacion::whereHas('region', fn ($r) => $r->where('codigo', '!=', 'BI'))->count(),
         ];
 
         return view('secretaria.juridica.postulaciones', [
             'postulaciones' => $postulaciones,
+            'cancelacionesPorRut' => $cancelacionesPorRut,
             'totales' => $totales,
             'q' => $q,
             'origenFiltro' => $origen,
             'regionFiltro' => $regionId,
+            'estadoFiltro' => $estado,
             'regiones' => Region::operativas()->orderBy('orden')->get(['id', 'nombre', 'codigo']),
         ]);
     }
 
     /**
-     * Exportación en Excel de postulaciones supervisadas a nivel nacional.
+     * Exportación en Excel de postulantes supervisados a nivel nacional.
+     * Genera un libro estructurado conforme al formato reglamentario oficial:
+     * - Hoja 1 ("En Proceso"): Postulantes que todavía no han terminado (19 columnas institucionales).
+     * - Hoja 2 ("Finalizados con Evaluación"): Postulantes con práctica culminada (19 columnas con rúbrica y conceptos en palabras).
      */
     public function exportarPostulaciones(Request $request)
     {
         $this->autorizar($request);
 
-        $q = trim((string) $request->query('q'));
-        $origen = $request->query('origen');
-        $regionId = $request->query('region_id');
+        $hojaSolicitada = $request->query('hoja'); // null/'ambos', 'proceso', 'terminados'
+        $postulaciones = $this->queryPostulaciones($request)
+            ->orderBy('fecha_postulacion')
+            ->orderBy('id')
+            ->get();
 
-        $base = Postulacion::with(['postulante', 'region', 'preferencias.consultorio'])
-            ->where('estado', 'pendiente');
+        // Clasificar según situación procesal
+        $terminados = $postulaciones->filter(function ($p) {
+            return $p->practica && in_array($p->practica->estado, ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true);
+        });
 
-        if ($q !== '') {
-            $base->whereHas('postulante', fn ($p) => $p
-                ->where('nombre', 'like', "%$q%")
-                ->orWhere('apellido', 'like', "%$q%")
-                ->orWhere('rut', 'like', "%$q%")
-                ->orWhere('universidad', 'like', "%$q%"));
-        }
+        $enProceso = $postulaciones->filter(function ($p) {
+            return ! $p->practica || ! in_array($p->practica->estado, ['finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial'], true);
+        });
 
-        if ($origen === 'local_biobio') {
-            $base->whereHas('region', fn ($r) => $r->where('codigo', 'BI'));
-        } elseif ($origen === 'externo') {
-            $base->whereHas('region', fn ($r) => $r->where('codigo', '!=', 'BI'));
-        }
-
-        if ($regionId && ctype_digit((string) $regionId)) {
-            $base->where('region_id', (int) $regionId);
-        }
-
-        $postulaciones = $base->orderBy('fecha_postulacion')->orderBy('id')->get();
-
-        $ruta = tempnam(sys_get_temp_dir(), 'post_jur').'.xlsx';
+        $ruta = tempnam(sys_get_temp_dir(), 'post_jur_').'.xlsx';
         $w = new Writer();
         $w->openToFile($ruta);
-        $w->addRow(Row::fromValues([
-            'Origen Territorial',
-            'Región',
-            'Código Región',
-            'Postulante',
-            'RUT',
-            'Email',
-            'Teléfono',
-            'Universidad',
-            'Fecha Postulación',
-            'Inicio Solicitado',
-            'Preferencia Consultorio',
-            'Atribución Jurídica Central',
-        ]));
 
-        foreach ($postulaciones as $p) {
-            $po = $p->postulante;
-            $esBiobio = $p->region && $p->region->codigo === 'BI';
-            $origenTexto = $esBiobio ? 'Local (Biobío)' : 'Externo ('.$p->region?->nombre.')';
-            $atribucion = $esBiobio ? 'Gestión Directa y Asignación' : 'Supervisión Solo Lectura (Competencia Regional)';
-            $pref = $p->preferencias->first()?->consultorio?->nombre ?? 'Sin preferencia';
+        $esSoloTerminados = $hojaSolicitada === 'terminados';
+        $esSoloProceso = $hojaSolicitada === 'proceso';
+
+        // 1. HOJA: Postulantes que todavía no han terminado
+        if (! $esSoloTerminados) {
+            $hojaProceso = $w->getCurrentSheet();
+            $hojaProceso->setName('En Proceso');
 
             $w->addRow(Row::fromValues([
-                $origenTexto,
-                $p->region?->nombre ?? 'Sin región',
-                $p->region?->codigo ?? '—',
-                $po ? $po->nombre.' '.$po->apellido : '—',
-                $po?->rut ?? '—',
-                $po?->email ?? '—',
-                $po?->telefono ?? '—',
-                $po?->universidad ?? '—',
-                $p->fecha_postulacion ? $p->fecha_postulacion->format('d-m-Y') : '—',
-                $p->fecha_inicio_solicitada ? $p->fecha_inicio_solicitada->format('d-m-Y') : '—',
-                $pref,
-                $atribucion,
+                'Nº',
+                'NOMBRE',
+                'RUT',
+                'FECHA DE NACIMIENTO',
+                'DIRECCION',
+                'TELEFONO',
+                'E- MAIL',
+                'CONSULTORIO',
+                'REGIÓN',
+                'MES DE INSCRIPCION',
+                'FECHA DE INICIO',
+                'Nº REGISTRO',
+                'UNIVERSIDAD',
+                'FECHA DE CERTIFICADO',
+                'SITUACIÓN ACADEMICA',
+                'APROBADA',
+                'FECHA APROBACION',
+                'TÉRMINO PROVISORIO',
+                'OBSERVACIONES',
             ]));
+
+            $i = 1;
+            foreach ($enProceso as $p) {
+                $po = $p->postulante;
+                $pr = $p->practica;
+                $ev = $pr?->evaluacion;
+
+                $consultorio = $pr?->consultorio?->nombre 
+                    ?? $p->consultorioAsignado?->nombre 
+                    ?? $p->preferencias->first()?->consultorio?->nombre 
+                    ?? 'Sin consultorio asignado';
+
+                $regionNombre = $pr?->consultorio?->region?->nombre 
+                    ?? $p->region?->nombre 
+                    ?? 'Sin región';
+
+                $mesInscripcion = $p->fecha_postulacion ? ucfirst($p->fecha_postulacion->translatedFormat('F Y')) : '—';
+                $fechaInicio = $pr?->fecha_inicio ? $pr->fecha_inicio->format('d-m-Y') : ($p->fecha_inicio_solicitada ? $p->fecha_inicio_solicitada->format('d-m-Y') : '—');
+                $numRegistro = $pr?->resolucion_numero 
+                    ?? $pr?->folio_carta_presentacion 
+                    ?? ($pr ? $pr->numero_registro_carta : 'POST-'.$p->id);
+                $fechaCertificado = $pr?->despachada_at?->format('d-m-Y') 
+                    ?? $pr?->firmado_director_general_at?->format('d-m-Y') 
+                    ?? $pr?->documentos_autorizados_at?->format('d-m-Y') 
+                    ?? 'Pendiente';
+
+                $aprobada = match (true) {
+                    (bool) $ev?->aprobado => 'SÍ',
+                    $p->estado === 'rechazada' => 'Rechazada',
+                    $pr?->estado === 'cancelada' => 'Cancelada',
+                    $pr?->estado === 'rechazada_sancion' => 'Sancionada',
+                    default => 'En trámite',
+                };
+
+                $fechaAprobacion = $pr?->validada_director_at?->format('d-m-Y') 
+                    ?? $pr?->nivelada_at?->format('d-m-Y') 
+                    ?? '—';
+
+                $terminoProvisorio = $pr?->fecha_termino ? $pr->fecha_termino->format('d-m-Y') : '—';
+
+                $obs = $p->motivo_rechazo 
+                    ?? $pr?->cancelacion_detalle 
+                    ?? $pr?->observaciones_director 
+                    ?? $pr?->justificacion_nivelacion 
+                    ?? $p->notas->last()?->texto 
+                    ?? '';
+
+                $w->addRow(Row::fromValues([
+                    $i++,
+                    $po ? $po->nombre_completo : '—',
+                    $po?->rut ?? '—',
+                    $po?->fecha_nacimiento ? $po->fecha_nacimiento->format('d-m-Y') : '—',
+                    $po?->direccion ?? '—',
+                    $po?->telefono ?? '—',
+                    $po?->email ?? '—',
+                    $consultorio,
+                    $regionNombre,
+                    $mesInscripcion,
+                    $fechaInicio,
+                    $numRegistro,
+                    $po?->universidad ?? '—',
+                    $fechaCertificado,
+                    $po?->anio_carrera ?? 'Egresado/a',
+                    $aprobada,
+                    $fechaAprobacion,
+                    $terminoProvisorio,
+                    $obs,
+                ]));
+            }
+        }
+
+        // 2. HOJA: Postulantes que sí terminaron (con evaluación y rúbrica)
+        if (! $esSoloProceso) {
+            if ($esSoloTerminados) {
+                $hojaTerminados = $w->getCurrentSheet();
+            } else {
+                $hojaTerminados = $w->addNewSheetAndMakeItCurrent();
+            }
+            $hojaTerminados->setName('Finalizados con Evaluación');
+
+            $w->addRow(Row::fromValues([
+                'NOMBRE',
+                'RUT',
+                'FECHA DE NACIMIENTO',
+                'TELEFONO',
+                'E- MAIL',
+                'CONSULTORIO',
+                'REGIÓN',
+                'MES',
+                'FECHA',
+                'N°REG',
+                'UNIVERSIDAD',
+                'CONOCIMIENTO Y CRITERIO',
+                'RESPONSABILIDAD',
+                'INICIATIVA',
+                'SENTIDO SOCIAL Y DE COLABORACION',
+                'CONDUCTA',
+                'HONORABILIDAD',
+                'ASISTENCIA Y PUNTUALIDAD',
+                'FECHA DE APROBACIÓN',
+            ]));
+
+            foreach ($terminados as $p) {
+                $po = $p->postulante;
+                $pr = $p->practica;
+                $ev = $pr?->evaluacion;
+
+                $consultorio = $pr?->consultorio?->nombre ?? $p->consultorioAsignado?->nombre ?? '—';
+                $regionNombre = $pr?->consultorio?->region?->nombre ?? $p->region?->nombre ?? '—';
+
+                $mesTermino = $pr?->finalizada_at ? ucfirst($pr->finalizada_at->translatedFormat('F Y')) : ($pr?->fecha_termino ? ucfirst($pr->fecha_termino->translatedFormat('F Y')) : '—');
+                $fechaTermino = $pr?->fecha_termino ? $pr->fecha_termino->format('d-m-Y') : ($pr?->finalizada_at ? $pr->finalizada_at->format('d-m-Y') : '—');
+                $numRegistro = $pr?->resolucion_numero 
+                    ?? ($pr?->certificados?->firstWhere('tipo', 'resolucion')?->numero_resolucion ? (string) $pr->certificados->firstWhere('tipo', 'resolucion')->numero_resolucion : null)
+                    ?? $pr?->folio_carta_presentacion 
+                    ?? ($pr ? $pr->numero_registro_carta : '—');
+
+                $fechaAprobacion = $pr?->validada_director_at?->format('d-m-Y') 
+                    ?? $pr?->nivelada_at?->format('d-m-Y') 
+                    ?? $pr?->despachada_at?->format('d-m-Y') 
+                    ?? ($pr?->finalizada_at ? $pr->finalizada_at->format('d-m-Y') : '—');
+
+                $w->addRow(Row::fromValues([
+                    $po ? $po->nombre_completo : '—',
+                    $po?->rut ?? '—',
+                    $po?->fecha_nacimiento ? $po->fecha_nacimiento->format('d-m-Y') : '—',
+                    $po?->telefono ?? '—',
+                    $po?->email ?? '—',
+                    $consultorio,
+                    $regionNombre,
+                    $mesTermino,
+                    $fechaTermino,
+                    $numRegistro,
+                    $po?->universidad ?? '—',
+                    $ev ? Notas::concepto($ev->conocimiento_juridico) : '—',
+                    $ev ? Notas::concepto($ev->responsabilidad) : '—',
+                    $ev ? Notas::concepto($ev->iniciativa) : '—',
+                    $ev ? Notas::concepto($ev->sentido_social) : '—',
+                    $ev ? Notas::concepto($ev->conducta) : '—',
+                    $ev ? Notas::concepto($ev->honorabilidad) : '—',
+                    $ev ? Notas::concepto($ev->asistencia_puntualidad) : '—',
+                    $fechaAprobacion,
+                ]));
+            }
         }
 
         $w->close();
 
-        return response()->download($ruta, 'postulaciones-nacionales-'.now()->format('Y-m-d').'.xlsx')->deleteFileAfterSend();
+        Auditoria::registrar('postulacion.exportar_nacional', 'postulacion', null, [
+            'total_registros' => $postulaciones->count(),
+            'hoja' => $hojaSolicitada ?? 'ambos',
+            'en_proceso' => $enProceso->count(),
+            'terminados' => $terminados->count(),
+            'filtros' => array_filter([
+                'q' => $request->query('q'),
+                'estado' => $request->query('estado'),
+                'origen' => $request->query('origen'),
+                'region_id' => $request->query('region_id'),
+            ]),
+            'motivo' => 'Descarga libro oficial 19 columnas de postulantes nacional (Ley N.° 19.628)',
+        ], $request->user()->id);
+
+        $nombreArchivo = 'supervision-nacional-postulantes-'.now()->format('Y-m-d').'.xlsx';
+
+        return response()->download($ruta, $nombreArchivo)->deleteFileAfterSend();
     }
 
     /**
@@ -322,6 +544,17 @@ class JuridicaBiobioController extends Controller
         }
 
         $w->close();
+
+        Auditoria::registrar('expediente.exportar_excel', 'expediente', null, [
+            'total_registros' => $expedientes->count(),
+            'filtros' => array_filter([
+                'q' => $q,
+                'estado' => $estado,
+                'origen' => $origen,
+                'region_id' => $regionId,
+            ]),
+            'motivo' => 'Exportación de nómina de expedientes en recepción Jurídica Central (Ley N.° 19.628)',
+        ], $request->user()->id);
 
         return response()->download($ruta, 'expedientes-juridica-central-'.now()->format('Y-m-d').'.xlsx')->deleteFileAfterSend();
     }
@@ -613,6 +846,12 @@ class JuridicaBiobioController extends Controller
         $pdfBin = CertificadosPractica::pdfCertificado($p, $request->user());
         $rut = $p->practicante?->postulante?->rut ?? 'postulante';
 
+        Auditoria::registrar('practica.descarga_certificado', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'origen' => 'juridica_central',
+            'rol' => $request->user()->rol,
+        ], $request->user()->id);
+
         return response($pdfBin, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="Certificado_Corte_Suprema_'.$rut.'.pdf"',
@@ -634,6 +873,12 @@ class JuridicaBiobioController extends Controller
         $pdfBin = CertificadosPractica::pdfResolucion($p, $request->user());
         $rut = $p->practicante?->postulante?->rut ?? 'postulante';
 
+        Auditoria::registrar('practica.descarga_resolucion', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'origen' => 'juridica_central',
+            'rol' => $request->user()->rol,
+        ], $request->user()->id);
+
         return response($pdfBin, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="Resolucion_Aprobacion_'.$rut.'.pdf"',
@@ -654,6 +899,13 @@ class JuridicaBiobioController extends Controller
 
         $zipPath = CertificadosPractica::zipExpediente($p, $request->user());
         $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        Auditoria::registrar('expediente.descargar_zip', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'consultorio_id' => $p->consultorio_id,
+            'region_id' => $p->consultorio?->region_id,
+            'origen' => 'juridica_central',
+        ], $request->user()->id);
 
         return response()->download($zipPath, 'Expediente_Practica_'.$rut.'.zip')->deleteFileAfterSend();
     }
@@ -695,5 +947,47 @@ class JuridicaBiobioController extends Controller
         ], $request->user()->id);
 
         return back()->with('ok', 'Calificación de Segunda Instancia (Corte de Apelaciones) registrada en concepto «'.$opcion['nombre'].'».');
+    }
+
+    /**
+     * Guarda o actualiza los folios y correlativos oficiales de la práctica y su resolución.
+     */
+    public function guardarFolios(Request $request, int $id)
+    {
+        $this->autorizar($request);
+        $p = Practica::findOrFail($id);
+
+        $validados = $request->validate([
+            'folio_carta_presentacion' => ['nullable', 'string', 'max:50'],
+            'resolucion_numero' => ['nullable', 'string', 'max:50'],
+            'resolucion_anio' => ['nullable', 'integer', 'min:1990', 'max:2100'],
+            'oficio_daj_numero' => ['nullable', 'string', 'max:50'],
+            'oficio_daj_fecha' => ['nullable', 'date'],
+            'folio_caj' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $p->update([
+            'folio_carta_presentacion' => $request->filled('folio_carta_presentacion') ? trim($validados['folio_carta_presentacion']) : null,
+            'resolucion_numero' => $request->filled('resolucion_numero') ? trim($validados['resolucion_numero']) : null,
+            'resolucion_anio' => $validados['resolucion_anio'] ?? null,
+            'oficio_daj_numero' => $request->filled('oficio_daj_numero') ? trim($validados['oficio_daj_numero']) : null,
+            'oficio_daj_fecha' => $validados['oficio_daj_fecha'] ?? null,
+            'folio_caj' => $request->filled('folio_caj') ? trim($validados['folio_caj']) : null,
+        ]);
+
+        if ($request->filled('resolucion_numero')) {
+            $cert = Certificado::where('practica_id', $p->id)->where('tipo', CertificadosPractica::RESOLUCION)->first();
+            if ($cert) {
+                $numEntero = (int) preg_replace('/\D/', '', (string) $validados['resolucion_numero']);
+                $cert->update([
+                    'numero_resolucion' => $numEntero,
+                    'anio' => (int) ($validados['resolucion_anio'] ?? $cert->anio),
+                ]);
+            }
+        }
+
+        Auditoria::registrar('practica.folios_actualizados', 'practica', $p->id, $validados, $request->user()->id);
+
+        return back()->with('ok', 'Folios y correlativos oficiales actualizados correctamente.');
     }
 }

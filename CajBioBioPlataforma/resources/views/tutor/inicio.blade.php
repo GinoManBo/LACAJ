@@ -110,6 +110,13 @@
                             <td>{{ $fmt($p->fecha_inicio) }} al {{ $fmt($p->fecha_termino) }}</td>
                             <td>
                                 <x-badge :estado="$p->estado_mostrado" :texto="$etiquetasEstado[$p->estado_mostrado] ?? null" />
+                                @if ($p->carta_presentacion_firmada)
+                                    <div>
+                                        <a href="{{ route('tutor.practicantes.carta_firmada', $p->id) }}" target="_blank" class="badge" style="background:#f0fdf4;color:#166534;font-size:0.75rem;margin-top:0.25rem;display:inline-flex;align-items:center;gap:0.2rem;text-decoration:none;" title="Ver Carta de Presentación firmada">
+                                            ✓ Carta firmada
+                                        </a>
+                                    </div>
+                                @endif
                                 @if ($alerta)
                                     <div class="tp-aviso-cierre" role="note">
                                         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>

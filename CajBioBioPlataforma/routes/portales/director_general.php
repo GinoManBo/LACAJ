@@ -11,6 +11,7 @@ Route::prefix('director-general')->name('director_general.')->middleware('rol:di
     // Descarga de documentos para firma
     Route::get('/expedientes/{id}/certificado', [DirectorGeneralController::class, 'descargarCertificado'])->whereNumber('id')->name('certificado');
     Route::get('/expedientes/{id}/resolucion', [DirectorGeneralController::class, 'descargarResolucion'])->whereNumber('id')->name('resolucion');
+    Route::post('/expedientes/{id}/actualizar-folios', [DirectorGeneralController::class, 'guardarFolios'])->whereNumber('id')->name('guardar_folios');
     Route::post('/expedientes/descargar-lote', [DirectorGeneralController::class, 'descargarLote'])->name('descargar_lote');
 
     // Módulo de integración con FirmaGob (Gatillador de Cierre)

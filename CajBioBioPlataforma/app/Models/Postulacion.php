@@ -19,4 +19,14 @@ class Postulacion extends Model
     public function notas() { return $this->hasMany(PostulacionNota::class)->orderBy('created_at'); }
     public function documentos() { return $this->hasMany(Documento::class); }
     public function practica() { return $this->hasOne(Practica::class); }
+
+    public function practicasPreviasCanceladas()
+    {
+        return $this->postulante?->practicasPreviasCanceladas() ?? collect();
+    }
+
+    public function tieneCancelacionPrevia(): bool
+    {
+        return (bool) $this->postulante?->tieneCancelacionPrevia();
+    }
 }

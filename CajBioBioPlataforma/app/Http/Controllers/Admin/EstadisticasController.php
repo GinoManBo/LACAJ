@@ -7,6 +7,7 @@ use App\Models\Consultorio;
 use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Region;
+use App\Services\Auditoria;
 use App\Services\Practicas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -245,6 +246,10 @@ class EstadisticasController extends Controller
         }
 
         $w->close();
+
+        Auditoria::registrar('estadisticas.exportar_excel', 'estadistica', null, [
+            'motivo' => 'Exportación consolidada de métricas y estadísticas institucionales',
+        ], $request->user()->id);
 
         return response()->download($ruta, 'estadisticas_globales_caj_'.now()->format('Ymd_His').'.xlsx')->deleteFileAfterSend();
     }

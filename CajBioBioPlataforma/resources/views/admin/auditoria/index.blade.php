@@ -29,7 +29,7 @@
     <form method="GET" action="{{ route('admin.auditoria.index') }}" class="filtros-grilla" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
         <div style="flex: 1; min-width: 220px;">
             <label for="q" class="campo-etiqueta" style="font-size:0.85rem; font-weight:600; margin-bottom:0.25rem; display:block;">Búsqueda general</label>
-            <input type="text" id="q" name="q" value="{{ $q }}" placeholder="Acción, usuario, RUT, IP..." class="campo-control" style="width:100%;">
+            <input type="text" id="q" name="q" value="{{ $q }}" placeholder="Acción, usuario, RUT, IP, navegador..." class="campo-control" style="width:100%;">
         </div>
         <div style="min-width: 180px;">
             <label for="accion" class="campo-etiqueta" style="font-size:0.85rem; font-weight:600; margin-bottom:0.25rem; display:block;">Acción ejecutada</label>
@@ -81,7 +81,7 @@
                     <th>Usuario Responsable</th>
                     <th>Acción</th>
                     <th>Entidad / ID</th>
-                    <th>IP</th>
+                    <th style="width: 170px;">IP / Navegador</th>
                     <th>Detalle / Payload JSON</th>
                 </tr>
             </thead>
@@ -93,7 +93,11 @@
                             str_contains($r->accion, 'cancelar') => '#fee2e2; color:#b91c1c;',
                             str_contains($r->accion, 'modificar') => '#fef3c7; color:#b45309;',
                             str_contains($r->accion, 'validar') || str_contains($r->accion, 'firma') => '#dcfce7; color:#15803d;',
+                            str_contains($r->accion, 'evaluar') || str_contains($r->accion, 'evaluacion') => '#ccfbf1; color:#0f766e;',
                             str_contains($r->accion, 'crear') || str_contains($r->accion, 'creado') => '#e0e7ff; color:#3730a3;',
+                            str_contains($r->accion, 'exportar') => '#fef3c7; color:#92400e;',
+                            str_contains($r->accion, 'descarga') || str_contains($r->accion, 'documento') => '#e0f2fe; color:#0369a1;',
+                            str_contains($r->accion, 'nota') => '#f3e8ff; color:#6b21a8;',
                             default => '#f1f5f9; color:#475569;',
                         };
                     @endphp
@@ -124,7 +128,12 @@
                             @endif
                         </td>
                         <td style="font-size:0.8rem; font-family:monospace; color:#64748b;">
-                            {{ $r->ip ?? '—' }}
+                            <div>{{ $r->ip ?? '—' }}</div>
+                            @if ($r->user_agent)
+                                <div style="font-size:0.7rem; color:#94a3b8; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:sans-serif;" title="{{ $r->user_agent }}">
+                                    {{ $r->user_agent }}
+                                </div>
+                            @endif
                         </td>
                         <td style="font-size:0.8rem;">
                             @if ($r->datos && count($r->datos) > 0)

@@ -442,3 +442,157 @@ El perfil de **Administrador General** corresponde al usuario central superior e
    * En `DirectorRegionalController::ver` (utilizado por Directores Regionales y por la Jefatura / Revisores de UCOE Biobío al presionar «Ver legajo») y en `DirectorGeneralController::ver`, la carga impaciente incluye `'calificaciones.registradaPor'`.
    * El modelo `App\Models\Calificacion` no tenía definida la relación Eloquent hacia el usuario que registró la calificación, a pesar de existir la columna de clave foránea `registrada_por` en la tabla `calificaciones`.
    * Se definió la relación `public function registradaPor() { return $this->belongsTo(Usuario::class, 'registrada_por'); }` en `App\Models\Calificacion`, eliminando la excepción `RelationNotFoundException` y habilitando la apertura y visación del legajo en UCOE y Direcciones Regionales.
+
+11. **Normalización y Formateo Multilínea de Horarios de Consultorios (Hallazgo #N7):**
+   * En el catálogo de sedes y consultorios (`consultorios.horario_atencion`), los horarios contenían secuencias de escape de texto literales `\n` o bloques de espaciado tabular producto de la carga inicial en comillas simples, provocando que en las vistas de Secretaría Regional y Administrador (`secretaria/consultorios/ver.blade.php`, `admin/consultorios/ver.blade.php`, `admin/consultorios/form.blade.php`) se mostraran los caracteres `\n` en pantalla en lugar de saltos de línea.
+   * Se incorporó en el modelo `App\Models\Consultorio` un accessor `getHorarioAtencionAttribute` y un mutator `setHorarioAtencionAttribute` que normalizan automáticamente secuencias literales `\n`, saltos Windows/Mac y espaciados tabulares a saltos de línea reales `\n`.
+   * Se creó la migración `2026_11_08_000001_normalizar_horario_atencion_consultorios.php` para sanear de forma no destructiva los registros existentes en base de datos.
+   * En combinación con el estilo `white-space: pre-line` existente en las vistas, los horarios ahora se presentan estructurados por jornada y día de forma legible e impecable.
+
+12. **Visualización de Disponibilidad y Cupos Ocupados/Totales en Postulación (Hallazgo #N8):**
+   * En el flujo de postulación institucional (`PostulacionController::datosPasoConsultorios` y `datosResumen`), los postulantes no tenían visibilidad de la ocupación real ni de la capacidad de los consultorios antes de elegirlos como preferencias.
+   * Se integró el cálculo eficiente y agregado de vacantes activas vía `Practica::query()->whereIn('estado', ['por_iniciar', 'activa'])->where('fecha_termino', '>', today())->groupBy('consultorio_id')->selectRaw('consultorio_id, count(*) as total')`, determinando para cada consultorio sus cupos ocupados, libres y nivel de disponibilidad institucional (`Practicas::nivelDisponibilidad`).
+   * En el Paso 4 (`postulacion/paso4.blade.php`), se incorporó una leyenda informativa y se muestra en cada tarjeta de consultorio la cifra exacta (ej. `3 de 5 cupos ocupados (2 libres)`) junto con el badge institucional (`Muchos cupos`, `Pocos cupos` o `Sin cupos`).
+   * En el Paso 5 (`postulacion/paso5.blade.php`) y en el portal del postulante (`postulante/inicio.blade.php`), el resumen de consultorios seleccionados mantiene la visibilidad de cupos ocupados y totales para máxima transparencia y orientación del postulante.
+
+13. **Modificación de Criterios/Secciones de Nota por UCOE y Log de Auditoría Inmutable:**
+   * Anteriormente, la Jefatura / Revisores de UCOE y Direcciones Regionales solo contaban con un selector para modificar el concepto final global (`concepto`), sin poder ajustar individualmente los 7 factores reglamentarios de desempeño de la rúbrica institucional.
+   * Se modificó `DirectorRegionalController::validar` y la vista `resources/views/director/ver.blade.php` para incorporar una tabla interactiva con selectores individuales para cada uno de los 7 criterios reglamentarios (`conocimiento_juridico`, `responsabilidad`, `iniciativa`, `sentido_social`, `conducta`, `honorabilidad`, `asistencia_puntualidad`), sincronizada dinámicamente con el promedio ponderado y la calificación final en palabras.
+   * Al guardar una modificación, se actualizan individualmente las columnas de criterios en el registro `evaluaciones`, así como el promedio, el veredicto de aprobación y la nota en `practicas` y `calificaciones`.
+   * Toda modificación de criterios o nota final genera un registro estricto en el log inmutable de auditoría institucional (`Auditoria::registrar`), guardando bajo `ucoe.modificar_evaluacion` o `director.modificar_evaluacion` el detalle antes/después de cada criterio modificado, la nota anterior/nueva, el usuario responsable, la justificación obligatoria y la dirección IP.
+   * Se incorporó en `director/ver.blade.php` una sección visible de historial de auditoría que detalla cronológicamente las revisiones y ajustes realizados sobre el expediente.
+
+14. **Supervisión Nacional de Postulantes en Todos sus Estados y Exportación Oficial en Excel Multiejecutiva:**
+   * Anteriormente, la pantalla de Supervisión Nacional de Postulaciones (`/secretaria/juridica/postulaciones`) estaba rígidamente limitada a postulaciones en estado `'pendiente'` (`where('estado', 'pendiente')`), impidiendo a la Secretaría Jurídica Central supervisar el ciclo de vida completo de los postulantes del país (activos en curso, finalizados, nivelados o cerrados con certificado).
+   * Se refactorizó `JuridicaBiobioController::postulaciones` y `exportarPostulaciones` mediante la consulta transversal `queryPostulaciones(Request $request)` que carga impacientemente a los postulantes, sus consultorios, regiones, prácticas, rúbricas de evaluación y calificaciones, eliminando el filtro duro de pendientes.
+   * Se incorporó un filtro multifuncional de estados en la interfaz (`resources/views/secretaria/juridica/postulaciones.blade.php`):
+     * Agrupaciones macro: «En Proceso (Pendientes y En Curso)» y «Terminados / Evaluados».
+     * Estados específicos: `pendiente`, `por_iniciar`, `activa`, `finalizada`, `remitida_biobio`, `nivelada_biobio`, `cerrada_historial`, `rechazada`, `cancelada` y `rechazada_sancion`.
+   * Se rediseñó el panel de indicadores KPI superiores para reflejar el volumen nacional consolidado: Postulantes Totales, Pendientes en Espera, En Curso Activo, Terminadas / Evaluadas, Gestión Directa Biobío y Supervisión Regional.
+   * Se actualizó la tabla institucional incorporando la columna de estado procesal con badges institucionales dinámicos (`<x-badge :estado="$estadoItem" />`) y el concepto de calificación reglamentario si ya fue evaluado, manteniendo enlaces contextuales al expediente (`secretaria.juridica.ver`), seguimiento de práctica o tramitación de postulación.
+   * **Exportación Oficial en Excel (.xlsx) con Estructura Institucional de Dos Hojas:**
+     * **Hoja 1 («En Proceso»):** Genera las 19 columnas reglamentarias para postulantes que aún no culminan su práctica: `Nº`, `NOMBRE`, `RUT`, `FECHA DE NACIMIENTO`, `DIRECCION`, `TELEFONO`, `E- MAIL`, `CONSULTORIO`, `REGIÓN`, `MES DE INSCRIPCION`, `FECHA DE INICIO`, `Nº REGISTRO`, `UNIVERSIDAD`, `FECHA DE CERTIFICADO`, `SITUACIÓN ACADEMICA`, `APROBADA`, `FECHA APROBACION`, `TÉRMINO PROVISORIO` y `OBSERVACIONES`.
+     * **Hoja 2 («Finalizados con Evaluación»):** Genera las 19 columnas oficiales para egresados con práctica concluida, desglosando los 7 factores reglamentarios de la rúbrica institucional convertidos a conceptos en palabras (`Sobresaliente`, `Buena`, `Regular`, `Mala`): `NOMBRE`, `RUT`, `FECHA DE NACIMIENTO`, `TELEFONO`, `E- MAIL`, `CONSULTORIO`, `REGIÓN`, `MES`, `FECHA`, `N°REG`, `UNIVERSIDAD`, `CONOCIMIENTO Y CRITERIO`, `RESPONSABILIDAD`, `INICIATIVA`, `SENTIDO SOCIAL Y DE COLABORACION`, `CONDUCTA`, `HONORABILIDAD`, `ASISTENCIA Y PUNTUALIDAD` y `FECHA DE APROBACIÓN`.
+     * Se habilitó tanto la descarga integrada del libro completo con ambas pestañas como la descarga selectiva de cada hoja individual (`hoja=proceso` y `hoja=terminados`), conservando de manera fidedigna los filtros activos en pantalla (`q`, `origen`, `region_id`, `estado`).
+   * **Blindaje Estricto de Competencia Territorial y Etapa de Revisión:**
+     * Se blindó la ficha de postulación (`resources/views/secretaria/postulaciones/ver.blade.php`), de modo que la secretaría solo puede tramitar y modificar admisiones si se cumplen copulativamente dos condiciones: (1) **Territorial:** Que el postulante pertenezca a su jurisdicción (Biobío para Jurídica Central o región propia para secretaría regional; las demás se bloquean en modo «Solo Lectura - Postulación Regional»), y (2) **Etapa procesal:** Que la postulación se encuentre estrictamente en etapa de revisión previa (`estado === 'pendiente'`). Si ya fue resuelta (`aceptada` o `rechazada`), se retiran los botones de acción y modales de aceptación/rechazo, desplegando la tarjeta informativa de «Estado de resolución» con fecha, revisor y enlace a la práctica en curso.
+
+15. **Catálogo Oficial de Universidades y Selector Searchable con Filtrado Instantáneo:**
+   * Anteriormente, la universidad del postulante en el Paso 3 del formulario de postulación (`resources/views/postulacion/paso3.blade.php`) y en la edición de datos personales (`resources/views/postulante/datos.blade.php`) era un campo de texto libre plano (`<input type="text">`), lo que generaba inconsistencias de nombres, abreviaciones heterogéneas y erratas en los reportes institucionales.
+   * Se creó la clase de soporte `App\Support\Universidades` conteniendo las 54 opciones reglamentarias oficiales, abarcando todas las casas de estudios superiores de Chile (tradicionales, privadas, extintas con egresados vigentes y opción de contingencia «Otra institución no listada»).
+   * Se diseñó el componente reutilizable `<x-selector-universidad>` con un combobox accesible y responsivo.
+   * En `resources/js/postulacion.js` se implementó `iniciarSelectorUniversidad()` con filtrado en tiempo real (`input`), normalización de caracteres/tildes y soporte para búsqueda tanto por nombre completo como por abreviatura/sigla (ej. `UdeC`, `PUCV`, `UC`, `UCSC`, `UBB`, `USS`, `UACH`, `UAH`, etc.).
+   * Se incorporó soporte integral de teclado (flechas arriba/abajo para navegar, Enter para seleccionar, Escape/Tab para cerrar) y cierre por clic exterior.
+   * Ante la selección de «Otra institución no listada» o cuando el postulante cuente con una institución especial preexistente, se despliega automáticamente un campo secundario validado para registrar el nombre de la institución, asegurando trazabilidad fidedigna tanto en `PostulacionController` como en `PerfilController`.
+
+
+16. **Re-postulación de Postulantes Cancelados o Rechazados sin Sobreescritura Histórica (Arquitectura No Destructiva):**
+    * Se verificó y reforzó la arquitectura de datos respecto al ciclo de vida de los postulantes y practicantes:
+      * En la base de datos, la relación entre un postulante (RUT) y sus postulaciones es de 1 a N (`Postulante::hasMany(Postulacion)`), al igual que entre un practicante y sus prácticas (`Practicante::hasMany(Practica)`).
+      * Cada nueva postulación enviada a través de `PostulacionController::enviar` ejecuta un `Postulacion::create(...)`, originando un nuevo registro independiente en la tabla `postulaciones` con su propio ID y fecha de ingreso, sin sobreescribir ni mutar jamás las postulaciones previas.
+      * Cuando una postulación es aceptada, se crea una nueva fila en `practicas` (`Practica::create(...)`) vinculada a la nueva postulación.
+      * Si una práctica anterior fue cancelada por la secretaría o el tutor institucional (por conducta, renuncia/decisión del postulante o error administrativo), dicho expediente cancelado permanece inalterado e indexado de forma permanente en la base de datos, conservando su causal (`cancelacion_motivo`), fecha de cancelación (`cancelacion_fecha`), detalle (`cancelacion_detalle`), usuario responsable (`cancelada_por`), trazabilidad en el log de auditoría (`Auditoria::registrar('practica.cancelar', ...)`) y en el historial de prácticas de la secretaría.
+    * En `PostulacionController::enviar`, se implementó la validación para impedir postulaciones concurrentes si el postulante ya cuenta con una práctica asignada o en curso (`por_iniciar`, `activa`, `remitida_biobio`, `nivelada_biobio`), permitiendo explícitamente re-postular a aquellos cuya práctica haya sido cancelada (`cancelada`) o cuya postulación previa haya sido rechazada (`rechazada`) o retirada (`retirada`).
+    * En `PerfilController::inicio` y `resources/views/postulante/inicio.blade.php`:
+      * Se integró la visualización clara del estado de cancelación previa: si la práctica asociada fue cancelada, el portal del postulante despliega una tarjeta explicativa con badge «Práctica Cancelada», fecha de cancelación, causal reglamentaria y sede anterior.
+      * Se aclara explícitamente al postulante que sus antecedentes previos permanecen archivados y resguardados institucionalmente, habilitando el botón destacado «Postular nuevamente» (`route('postulacion.paso', 1)`) para reiniciar su proceso con una postulación limpia y con sus datos básicos pre-cargados.
+
+
+17. **Detección y Visualización de Antecedentes de Cancelación Previa al Asignar Postulantes:**
+    * **Objetivo:** Cuando un postulante que haya tenido una práctica previa cancelada (por cualquier motivo reglamentario: conducta, renuncia/decisión, error de registro u otro) vuelva a postular, la secretaría encargada de tramitar su admisión debe ser alertada de forma ostensible antes y durante el proceso de asignación de sede, conociendo con total claridad la causal y antecedentes de la cancelación.
+    * **Cálculo y Modelado de Antecedentes:**
+      * En `Postulante` y `Postulacion`, se incorporaron los métodos `practicasPreviasCanceladas()` y `tieneCancelacionPrevia()` para recuperar de manera retroactiva el historial de cancelaciones por RUT o relación postulante/practicante.
+      * En `Practicas::MOTIVOS_CANCELACION` y `Practicas::textoMotivoCancelacion()`, se estandarizó la resolución textual de todas las causales reglamentarias (`conducta` -> «Conducta del postulante», `decision` -> «Decisión del postulante», `error_registro` -> «Error de registro administrativo», `otro` -> «Otro motivo»).
+    * **Alertas en la Ficha de Tramitación y Asignación (`secretaria.postulaciones.ver`):**
+      * **Cabecera:** Se añade el badge de alerta institucional `⚠️ CANCELACIÓN PREVIA REGISTRADA`.
+      * **Panel Destacado de Antecedente Institucional:** Despliega una tarjeta roja/rosácea de advertencia destacando:
+        * Causal reglamentaria en tipografía sobresaliente.
+        * Fecha oficial de cancelación y tiempo transcurrido.
+        * Sede / consultorio y región anterior asignada.
+        * Abogado tutor institucional a cargo en dicha práctica.
+        * Funcionario o autoridad que registró la cancelación.
+        * Momento procesal (antes de iniciar vs. en el transcurso).
+        * Detalle y justificación textual registrada al momento de cancelar.
+      * **Tarjeta Lateral de Resolución:** Alerta resumida antes de presionar los botones de acción.
+      * **Modal de Asignación de Consultorio (`modal-aceptar`):** Se insertó un banner de advertencia directamente dentro del modal donde se selecciona el consultorio, garantizando que la secretaría tenga presente el antecedente al confirmar el nuevo destino.
+    * **Alertas en Listados de Postulaciones:**
+      * En `resources/views/secretaria/postulaciones/index.blade.php` (Secretaría Regional) y `resources/views/secretaria/juridica/postulaciones.blade.php` (Supervisión Nacional Jurídica Central), se pre-consultan las cancelaciones por lote (`$cancelacionesPorRut`) para evitar consultas N+1 y se muestra un badge explicativo junto al nombre del postulante: `⚠️ Cancelación previa: [Motivo]` con tooltip informativo.
+
+
+18. **Límite Máximo de 3 Consultorios en el Formulario de Postulación:**
+    * **Objetivo:** Permitir que los postulantes elijan entre 1 y un máximo de 3 consultorios por orden de preferencia durante el Paso 4 del formulario de postulación.
+    * **Validación Backend (`PostulacionController`):**
+      * En `reglasPaso4()`, se actualizó la regla de validación de `consultorios` a `['required', 'array', 'min:1', 'max:3']`.
+      * En `mensajes()`, se incorporó el mensaje reglamentario: `'consultorios.max' => 'Puede seleccionar como máximo 3 consultorios por orden de preferencia.'`.
+      * En `datosPasoConsultorios()`, se acotó la carga de consultorios seleccionados a los primeros 3 (`array_slice(..., 0, 3)`).
+    * **Interfaz de Usuario e Interactividad (`paso4.blade.php` y `postulacion.js`):**
+      * En la vista `resources/views/postulacion/paso4.blade.php`, se actualizó el texto de ayuda explicativo y se incorporó un contador dinámico institucional de opciones elegidas (`X de 3 elegidos` / `3 de 3 (Máximo alcanzado)`).
+      * Se diseñó un banner de advertencia visual (`cons-aviso-max`) que se despliega si el postulante intenta añadir un 4° consultorio, indicándole claramente que debe quitar uno de los ya seleccionados para agregar otro.
+      * En `resources/js/postulacion.js`, la función `iniciarConsultorios()` controla activamente el límite (`MAX_CONSULTORIOS = 3`), impidiendo la inserción de más de 3 sedes, actualizando los badges de orden y ocultando automáticamente el aviso al deseleccionar una sede.
+
+
+19. **Re-subida y Actualización de Cédula de Identidad y Certificado de Egreso en Edición de Postulación:**
+    * **Objetivo:** Permitir que el postulante, mientras su postulación se encuentre en etapa de revisión (`pendiente` o `derivada`), pueda no solo editar sus datos personales y académicos, sino también volver a subir o actualizar sus documentos reglamentarios fundamentales: la cédula de identidad (lado frontal y lado reverso) y el certificado de egreso.
+    * **Controlador y Lógica de Almacenamiento (`PerfilController`):**
+      * En `PerfilController::datos`, se cargan y pasan a la vista los documentos adjuntos de la postulación indexados por tipo (`$postulacion->documentos->keyBy('tipo')`).
+      * En `PerfilController::guardarDatos`, se implementó la validación multipart de archivos:
+        * Cédula frontal y reverso: formatos `pdf,jpg,jpeg,png` hasta 5 MB.
+        * Certificado de egreso: formatos `pdf,jpg,jpeg,png` hasta 8 MB (`config('caj.max_upload_mb')`).
+      * Si el postulante adjunta un nuevo archivo para cualquiera de estos tipos, se almacena en el disco local (`Almacenamiento::guardar`), se actualiza la tupla correspondiente en la tabla `documentos` (o se crea si no existía), se elimina de forma limpia el archivo físico anterior para no dejar huérfanos, y se deja registro de auditoría institucional (`Auditoria::registrar('postulacion.actualizar_documento', ...)`).
+      * Si se actualizan campos del perfil o archivos, se refresca la marca temporal `datos_actualizados_at = now()` en `postulantes` y se notifica a la secretaría correspondiente.
+    * **Interfaz de Edición (`resources/views/postulante/datos.blade.php`):**
+      * Se habilitó `enctype="multipart/form-data"` y `data-paso-archivos` en el formulario principal.
+      * Se incorporaron dos nuevas secciones visibles:
+        1. **Cédula de identidad:** Bloques para cédula frontal y cédula reverso mediante el componente reutilizable `<x-postulacion.cedula>`, mostrando el archivo cargado actualmente, enlace directo para visualizarlo en nueva pestaña, botones para subir un nuevo archivo o capturarlo directamente mediante cámara (integrado con el modal `<x-modal id="modal-camara">`).
+        2. **Certificado de egreso:** Tarjeta informativa con el nombre del certificado de egreso actual, tamaño en KB, fecha de subida previa y enlace para verlo, junto con el selector de archivo `<x-campo type="file">` para reemplazarlo de forma opcional.
+
+
+20. **Simplificación del Mensaje de Asignación de Consultorio en Secretaría:**
+    * **Objetivo:** En el modal de asignación de consultorio (`resources/views/secretaria/postulaciones/ver.blade.php`), eliminar el texto redundante que indicaba que el postulante ya contaba con acceso activo con la contraseña creada al postular, manteniendo limpia y directa la explicación institucional de la acción.
+    * **Cambio:** En la función interactiva `actualizar()`, el texto resultante para sedes propias quedó conciso: `Se acepta la postulación y se crea la práctica.`, omitiendo la mención accesoria de credenciales previas.
+
+
+21. **Persistencia y Parametrización Manual de Folios Institucionales CAJ (Carta de Presentación y Resolución de Término):**
+    * **Contexto y Problemática:**
+      * El sistema calculaba los números de folio exclusivamente mediante un correlativo automático estimado (`17400 + $practica->id`), sin persistir ni permitir ingresar los folios oficiales reales de los archivos físicos e institucionales de la CAJ.
+      * La Carta de Presentación oficial emitida por la Dirección de Acceso a la Justicia requiere el número de registro físico: *«El número de Registro en nuestros Archivos es el N. º 17.478.-»*.
+      * El Certificado para la Corte Suprema de Justicia no posee número de folio en el texto reglamentario.
+      * La Resolución de Término oficial que aprueba la práctica requiere ingresar y persistir manualmente:
+        1. El número y año de la resolución exenta (ej. *«RESOLUCIÓN N.° 596/2026»*).
+        2. El número y fecha del Oficio DAJ que fundamenta el considerando (ej. *«Oficio N.º 607/2026 del Director de Acceso a la Justicia de la Institución, de fecha 28 de julio de 2026»*).
+    * **Modelo y Base de Datos:**
+      * Se creó y ejecutó la migración `2026_11_08_000002_agrega_folios_institucionales_a_practicas.php`, añadiendo a la tabla `practicas`:
+        * `folio_carta_presentacion` (`string`, 50, nullable): Número de registro en archivos para la Carta de Presentación.
+        * `resolucion_numero` (`string`, 50, nullable): Número de la resolución de término.
+        * `resolucion_anio` (`unsignedSmallInteger`, nullable): Año oficial de la resolución.
+        * `oficio_daj_numero` (`string`, 50, nullable): Número de oficio de la Dirección de Acceso a la Justicia.
+        * `oficio_daj_fecha` (`date`, nullable): Fecha del oficio DAJ.
+        * `folio_caj` (`string`, 100, nullable): Folio estandarizado institucional en formato `CAJ-REG-AÑO-NNNN`.
+      * En `app/Models/Practica.php`, se configuraron los casts de fecha y año (`oficio_daj_fecha => 'date'`, `resolucion_anio => 'integer'`), y se definieron los accessors:
+        * `numero_registro_carta`: Devuelve el folio manual si está registrado; de lo contrario, aplica como fallback institucional seguro `number_format(17400 + $this->id, 0, '', '.')`.
+        * `numero_resolucion_completo`: Resuelve la nomenclatura oficial `numero/anio`.
+        * `folio_caj_calculado`: Resuelve dinámicamente el estándar `CAJ-{REGION}-{AÑO}-{ID_SECUENCIA}`.
+    * **Generación de Documentos Oficiales en PDF:**
+      * En `CartaPresentacionService.php`, se vinculó `$numeroRegistro = $p->numero_registro_carta`, asegurando que la carta tipo impresa refleje de inmediato el número manual guardado.
+      * En `CertificadosPractica::pdfResolucion`, se sincroniza el número y año manual con la entidad `Certificado` (`numero_resolucion`, `anio`).
+      * En `resources/views/pdf/resolucion.blade.php`:
+        * Se parametrizó el encabezado: `RESOLUCIÓN N.° {{ $practica->resolucion_numero ? $practica->resolucion_numero . '/' . ($practica->resolucion_anio ?? $certificado->anio) : $certificado->numero_resolucion . '/' . $certificado->anio }}`.
+        * En el `CONSIDERANDO`, se adaptó para estampar dinámicamente el memo DAJ: `Oficio @if($practica->oficio_daj_numero)N.º {{ $practica->oficio_daj_numero }}/{{ $practica->resolucion_anio ?? $certificado->anio }} @endif del Director de Acceso a la Justicia de la Institución, de fecha {{ $practica->oficio_daj_fecha ? $practica->oficio_daj_fecha->locale('es')->translatedFormat('d \d\e F \d\e Y') : $fechaRes }}...`.
+    * **Módulos de Gestión e Interfaz de Usuario:**
+      * **Secretaría Regional (`resources/views/secretaria/practicas/ver.blade.php`):** Se incorporó un bloque con formulario para registrar/actualizar el N.º de Registro en Archivos (`folio_carta_presentacion`) con botón «Guardar Folio», y se permitió actualizarlo también al momento de subir la carta firmada (`subirCartaPresentacion`).
+      * **Secretaría Jurídica Central (`resources/views/secretaria/juridica/ver.blade.php`):** Se añadió el botón «Folios y Correlativos Institucionales», una tarjeta resumen de trazabilidad de folios oficiales y el modal interactivo `modal-editar-folios` para configurar N.º de resolución, año, N.º de oficio DAJ, fecha de oficio y registro de carta.
+      * **Dirección General (`resources/views/director_general/ver.blade.php`):** Se desplegó en la tarjeta de documentos generados el N.° de resolución y oficio vigentes, integrando el modal `modal-folios-dg` para ajustar dichos correlativos antes de suscribir la resolución oficial con FirmaGob.
+      * **Historial Regional (`app/Http/Controllers/Secretaria/HistorialController.php`):** Se habilitó el endpoint `guardarFolios` para permitir corregir o ingresar folios a expedientes históricos.
+      * **Exportación Nacional a Excel (`JuridicaBiobioController.php`):** En las dos hojas del reporte («En Proceso» y «Finalizados con Evaluación»), las columnas `Nº REGISTRO` y `N°REG` leen y priorizan los folios reales persistidos (`resolucion_numero`, `folio_carta_presentacion` y `numero_registro_carta`).
+
+
+22. **Disponibilidad de la Carta de Presentación Oficial Firmada en el Portal del Abogado Tutor:**
+    * **Objetivo:** Una vez que la Secretaría Regional carga la Carta de Presentación firmada en el sistema para dar inicio oficial a la práctica, dicho documento debe quedar inmediatamente disponible para el Abogado Tutor / Abogado Jefe asignado en la sección del postulante correspondiente.
+    * **Rutas y Controlador (`routes/portales/tutor.php` y `app/Http/Controllers/Tutor/TutorController.php`):**
+      * Se crearon las rutas protegidas `GET /tutor/practicantes/{practica}/carta-firmada.pdf` y `GET /tutor/postulantes/{practica}/carta-firmada.pdf` (`route('tutor.practicantes.carta_firmada', $practica)`).
+      * En `TutorController::verCartaFirmada`, se implementó la entrega del PDF (`response()->file(...)`) con validación de seguridad de alcance: solo el tutor formalmente asignado al consultorio del practicante (o tutor regional de 2ª instancia) puede acceder al documento.
+    * **Interfaz de Usuario del Abogado Tutor:**
+      * **Cabecera de la ficha del practicante (`resources/views/tutor/practicante.blade.php`):** Se incorporó el botón destacado `Ver Carta Firmada (PDF)` cuando `$practica->carta_presentacion_firmada` está presente.
+      * **Ficha del postulante (`resources/views/tutor/practicante.blade.php`):** Se agregó un bloque informativo dentro de la tarjeta de datos personales indicando el estado oficial, la fecha y hora de subida por secretaría, el número de folio en archivos institucionales y un botón directo de descarga/visualización.
+      * **Bandeja de postulantes (`resources/views/tutor/inicio.blade.php`):** En la tabla de postulantes, la columna de estado incorpora el badge interactivo `✓ Carta firmada` con enlace directo al documento PDF.
+

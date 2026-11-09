@@ -16,17 +16,32 @@
         <fieldset class="bloque">
             <legend>Consultorios por orden de preferencia</legend>
             <div class="campo {{ $errCons ? 'tiene-error' : '' }}" data-grupo-obligatorio="Seleccione al menos un consultorio.">
-                <p class="bloque-nota texto-suave" id="cons-ayuda">Toque un consultorio para agregarlo: el primero que marque será su primera preferencia. Puede elegir los que quiera; para cambiar el orden, quite uno y vuelva a agregarlo.</p>
+                <p class="bloque-nota texto-suave" id="cons-ayuda">Toque un consultorio para agregarlo (máximo 3 consultorios): el primero que marque será su primera preferencia. Para cambiar el orden, quite uno y vuelva a agregarlo.</p>
 
                 <div class="cons-orden" data-orden aria-live="polite">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+                        <span style="font-weight:600;font-size:.9rem;color:var(--tinta-fuerte);">Consultorios seleccionados:</span>
+                        <span class="sec-tag" data-contador-cons style="font-weight:700;font-size:.8rem;">0 de 3 elegidos</span>
+                    </div>
                     <p class="cons-orden-vacio" data-orden-vacio>Aún no ha elegido ningún consultorio.</p>
                     <ol class="cons-orden-lista" data-orden-lista></ol>
+                </div>
+
+                <div class="cons-aviso-max" data-aviso-max style="display:none;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;color:#991b1b;padding:.75rem 1rem;border-radius:.375rem;font-size:.88rem;margin-bottom:.75rem;" role="alert">
+                    <strong>Límite máximo alcanzado:</strong> Puede elegir como máximo 3 consultorios por orden de preferencia. Para agregar este consultorio, primero quite uno de los ya seleccionados en la lista de arriba.
                 </div>
 
                 <div class="cons-buscar">
                     <label for="cons-buscar" class="sr-only">Buscar consultorio por nombre o comuna</label>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
                     <input type="search" id="cons-buscar" class="campo-control" placeholder="Buscar por nombre o comuna" autocomplete="off" data-buscar>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem;font-size:.82rem;color:var(--tinta-suave);" aria-label="Leyenda de disponibilidad de cupos">
+                    <span>Disponibilidad de cupos:</span>
+                    <x-badge estado="muchos" />
+                    <x-badge estado="pocos" />
+                    <x-badge estado="sin" />
                 </div>
 
                 <ul class="cons-lista" data-lista aria-describedby="cons-ayuda">
@@ -37,6 +52,10 @@
                                 <span class="cons-datos">
                                     <strong data-nombre>{{ $c->nombre }}</strong>
                                     <span>{{ $c->comuna?->nombre }}@if ($c->direccion) · {{ $c->direccion }}@endif</span>
+                                    <span class="cons-cupos" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.2rem;">
+                                        <span><strong>{{ $c->ocupados }}</strong> de {{ $c->capacidad }} cupos ocupados ({{ $c->libres }} {{ $c->libres === 1 ? 'libre' : 'libres' }})</span>
+                                        <x-badge :estado="$c->disponibilidad" />
+                                    </span>
                                     @if ($c->id === $masCercanoId)<x-badge estado="informativo" texto="MÁS CERCANO A SU DOMICILIO" />@endif
                                 </span>
                             </button>

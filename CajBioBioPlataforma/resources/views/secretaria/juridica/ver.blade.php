@@ -71,6 +71,11 @@
             </x-boton>
         @endif
 
+        <x-boton tipo="secundario" data-modal-abrir="modal-editar-folios">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.4rem;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Folios y Correlativos Institucionales
+        </x-boton>
+
         @if ($puedeDespachar && ! $esCerrada)
             <form action="{{ route('secretaria.juridica.despachar', $practica->id) }}" method="POST" onsubmit="return confirm('¿Confirmar la autorización y el despacho formal de los certificados al portal del postulante, archivando el expediente en Historial?');">
                 @csrf
@@ -170,6 +175,61 @@
                     <div class="ancho-completo"><dt>Despachado</dt><dd>{{ $practica->despachada_at->format('d-m-Y H:i') }} (Archivado en CerradaHistorial)</dd></div>
                 @endif
             </dl>
+        </x-tarjeta>
+
+        <x-tarjeta titulo="Folios y Correlativos Institucionales">
+            <dl class="datos">
+                <div>
+                    <dt>N.º de Resolución</dt>
+                    <dd>
+                        @if ($practica->resolucion_numero)
+                            <strong>RESOLUCIÓN N.° {{ $practica->resolucion_numero }}/{{ $practica->resolucion_anio ?? now()->year }}</strong>
+                            <span class="sec-tag sec-tag-finalizada" style="font-size:0.75rem; margin-left:0.25rem;">MANUAL</span>
+                        @else
+                            @php
+                                $certRes = $practica->certificados->where('tipo', 'resolucion')->first();
+                            @endphp
+                            <span>{{ $certRes ? 'RESOLUCIÓN N.° ' . $certRes->numero_resolucion . '/' . $certRes->anio : 'Correlativo institucional automático al generar' }}</span>
+                        @endif
+                    </dd>
+                </div>
+                <div>
+                    <dt>Oficio DAJ (Considerando)</dt>
+                    <dd>
+                        @if ($practica->oficio_daj_numero)
+                            <strong>Oficio N.º {{ $practica->oficio_daj_numero }}/{{ $practica->resolucion_anio ?? now()->year }}</strong>
+                            @if ($practica->oficio_daj_fecha)
+                                <span style="font-size:0.8rem; color:var(--texto-suave);">({{ $practica->oficio_daj_fecha->format('d/m/Y') }})</span>
+                            @endif
+                        @else
+                            <span style="color:var(--texto-suave);">Estándar sin numerar (automático)</span>
+                        @endif
+                    </dd>
+                </div>
+                <div>
+                    <dt>Carta de Presentación</dt>
+                    <dd>
+                        <strong>N.º {{ $practica->numero_registro_carta }}</strong>
+                        @if ($practica->folio_carta_presentacion)
+                            <span class="sec-tag sec-tag-finalizada" style="font-size:0.75rem; margin-left:0.25rem;">REGISTRADO</span>
+                        @else
+                            <span style="font-size:0.8rem; color:var(--texto-suave);">(Estimado)</span>
+                        @endif
+                    </dd>
+                </div>
+                <div>
+                    <dt>Folio Institucional CAJ</dt>
+                    <dd>
+                        <code>{{ $practica->folio_caj ?? $practica->folio_caj_calculado }}</code>
+                    </dd>
+                </div>
+            </dl>
+            <div style="margin-top:0.75rem; text-align:right;">
+                <x-boton tipo="secundario" tam="sm" data-modal-abrir="modal-editar-folios">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.25rem;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Editar folios oficiales
+                </x-boton>
+            </div>
         </x-tarjeta>
     </div>
 </div>
@@ -296,5 +356,65 @@
         </x-slot:pie>
     </x-modal>
 @endif
+
+<x-modal id="modal-editar-folios" titulo="Configurar Folios y Correlativos Institucionales">
+    <form id="form-editar-folios" action="{{ route('secretaria.juridica.guardar_folios', $practica->id) }}" method="POST">
+        @csrf
+        <p style="margin:0 0 1rem;font-size:.88rem;color:var(--texto-suave);">
+            Ingrese los números de folio oficiales institucionales para que figuren exactamente en la Resolución de Término y demás documentos oficiales.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+            <div class="campo" style="margin:0;">
+                <label for="resolucion_numero" class="campo-etiqueta">N.º de Resolución</label>
+                <input type="text" id="resolucion_numero" name="resolucion_numero" class="campo-control"
+                       value="{{ old('resolucion_numero', $practica->resolucion_numero ?? $practica->certificados->where('tipo', 'resolucion')->first()?->numero_resolucion) }}"
+                       placeholder="Ej: 596 o 0596">
+                <span style="font-size:.75rem;color:var(--texto-suave);">Ej. RESOLUCIÓN N.° 596/2026</span>
+            </div>
+            <div class="campo" style="margin:0;">
+                <label for="resolucion_anio" class="campo-etiqueta">Año de Resolución</label>
+                <input type="number" id="resolucion_anio" name="resolucion_anio" class="campo-control"
+                       value="{{ old('resolucion_anio', $practica->resolucion_anio ?? $practica->certificados->where('tipo', 'resolucion')->first()?->anio ?? now()->year) }}"
+                       min="2000" max="2100">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+            <div class="campo" style="margin:0;">
+                <label for="oficio_daj_numero" class="campo-etiqueta">N.º Oficio DAJ (Considerando)</label>
+                <input type="text" id="oficio_daj_numero" name="oficio_daj_numero" class="campo-control"
+                       value="{{ old('oficio_daj_numero', $practica->oficio_daj_numero) }}"
+                       placeholder="Ej: 607">
+                <span style="font-size:.75rem;color:var(--texto-suave);">Ej. Oficio N.º 607/2026 DAJ</span>
+            </div>
+            <div class="campo" style="margin:0;">
+                <label for="oficio_daj_fecha" class="campo-etiqueta">Fecha de Oficio DAJ</label>
+                <input type="date" id="oficio_daj_fecha" name="oficio_daj_fecha" class="campo-control"
+                       value="{{ old('oficio_daj_fecha', $practica->oficio_daj_fecha?->format('Y-m-d')) }}">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+            <div class="campo" style="margin:0;">
+                <label for="folio_carta_presentacion" class="campo-etiqueta">N.º Registro Carta de Presentación</label>
+                <input type="text" id="folio_carta_presentacion" name="folio_carta_presentacion" class="campo-control"
+                       value="{{ old('folio_carta_presentacion', $practica->folio_carta_presentacion) }}"
+                       placeholder="Ej: 17.478">
+                <span style="font-size:.75rem;color:var(--texto-suave);">Registro en Archivos</span>
+            </div>
+            <div class="campo" style="margin:0;">
+                <label for="folio_caj" class="campo-etiqueta">Folio Institucional CAJ (Opcional)</label>
+                <input type="text" id="folio_caj" name="folio_caj" class="campo-control"
+                       value="{{ old('folio_caj', $practica->folio_caj) }}"
+                       placeholder="Ej: CAJ-BI-2026-017478">
+                <span style="font-size:.75rem;color:var(--texto-suave);">Formato institucional</span>
+            </div>
+        </div>
+    </form>
+    <x-slot:pie>
+        <x-boton type="submit" tipo="primario" form="form-editar-folios">Guardar Folios Institucionales</x-boton>
+    </x-slot:pie>
+</x-modal>
 
 @endsection

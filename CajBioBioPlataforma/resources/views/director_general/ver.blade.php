@@ -67,11 +67,21 @@
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <div style="font-weight:600; color:#1e293b; font-size:0.9rem;">Resolución de Aprobación</div>
-                    <div style="font-size:0.75rem; color:#64748b;">Resolución exenta de calificación</div>
+                    <div style="font-size:0.75rem; color:#64748b;">
+                        N.°: <strong>{{ $practica->resolucion_numero ? $practica->resolucion_numero . '/' . ($practica->resolucion_anio ?? now()->year) : 'Correlativo institucional' }}</strong>
+                        @if ($practica->oficio_daj_numero)
+                            · Oficio DAJ N.º {{ $practica->oficio_daj_numero }}/{{ $practica->resolucion_anio ?? now()->year }}
+                        @endif
+                    </div>
                 </div>
-                <x-boton tipo="secundario" tam="sm" :href="route('director_general.resolucion', $practica->id)" target="_blank">
-                    Descargar PDF
-                </x-boton>
+                <div style="display:flex; gap:0.5rem;">
+                    <x-boton tipo="secundario" tam="sm" data-modal-abrir="modal-folios-dg">
+                        Editar N.° y Oficio
+                    </x-boton>
+                    <x-boton tipo="secundario" tam="sm" :href="route('director_general.resolucion', $practica->id)" target="_blank">
+                        Descargar PDF
+                    </x-boton>
+                </div>
             </div>
 
             @if ($informeSaj)
@@ -235,4 +245,48 @@
         </div>
     @endif
 </div>
+
+<x-modal id="modal-folios-dg" titulo="Configurar N.º de Resolución y Oficio DAJ">
+    <form id="form-folios-dg" action="{{ route('director_general.guardar_folios', $practica->id) }}" method="POST">
+        @csrf
+        <p style="margin:0 0 1rem;font-size:.88rem;color:#64748b;">
+            Ingrese los números de folio oficiales para estampar en la Resolución de Aprobación que se suscribirá.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+            <div class="campo" style="margin:0;">
+                <label for="dg_resolucion_numero" class="campo-etiqueta">N.º de Resolución</label>
+                <input type="text" id="dg_resolucion_numero" name="resolucion_numero" class="campo-control"
+                       value="{{ old('resolucion_numero', $practica->resolucion_numero ?? $practica->certificados->where('tipo', 'resolucion')->first()?->numero_resolucion) }}"
+                       placeholder="Ej: 596 o 0596">
+                <span style="font-size:.75rem;color:#64748b;">Ej. RESOLUCIÓN N.° 596/2026</span>
+            </div>
+            <div class="campo" style="margin:0;">
+                <label for="dg_resolucion_anio" class="campo-etiqueta">Año de Resolución</label>
+                <input type="number" id="dg_resolucion_anio" name="resolucion_anio" class="campo-control"
+                       value="{{ old('resolucion_anio', $practica->resolucion_anio ?? $practica->certificados->where('tipo', 'resolucion')->first()?->anio ?? now()->year) }}"
+                       min="2000" max="2100">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+            <div class="campo" style="margin:0;">
+                <label for="dg_oficio_daj_numero" class="campo-etiqueta">N.º Oficio DAJ (Considerando)</label>
+                <input type="text" id="dg_oficio_daj_numero" name="oficio_daj_numero" class="campo-control"
+                       value="{{ old('oficio_daj_numero', $practica->oficio_daj_numero) }}"
+                       placeholder="Ej: 607">
+                <span style="font-size:.75rem;color:#64748b;">Ej. Oficio N.º 607/2026 DAJ</span>
+            </div>
+            <div class="campo" style="margin:0;">
+                <label for="dg_oficio_daj_fecha" class="campo-etiqueta">Fecha de Oficio DAJ</label>
+                <input type="date" id="dg_oficio_daj_fecha" name="oficio_daj_fecha" class="campo-control"
+                       value="{{ old('oficio_daj_fecha', $practica->oficio_daj_fecha?->format('Y-m-d')) }}">
+            </div>
+        </div>
+    </form>
+    <x-slot:pie>
+        <x-boton type="submit" tipo="primario" form="form-folios-dg">Guardar Folios Oficiales</x-boton>
+    </x-slot:pie>
+</x-modal>
+
 @endsection

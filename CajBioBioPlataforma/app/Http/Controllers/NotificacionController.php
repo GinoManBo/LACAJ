@@ -33,6 +33,10 @@ class NotificacionController extends Controller
     {
         Notificacion::where('usuario_destino_id', $request->user()->id)->whereNull('leida_at')->update(['leida_at' => now()]);
 
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
         return back()->with('ok', 'Todas las notificaciones fueron marcadas como leídas.');
     }
 }

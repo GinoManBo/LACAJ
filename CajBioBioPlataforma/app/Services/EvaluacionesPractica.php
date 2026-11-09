@@ -40,6 +40,10 @@ class EvaluacionesPractica
                 throw ValidationException::withMessages(['evaluacion' => 'Esta práctica ya fue evaluada.']);
             }
 
+            // Capturar estado previo para trazabilidad completa
+            $estadoPrevio = $p->estado;
+            $notaPrevia = $p->nota_practica;
+
             $promedio = Notas::promedio($puntajes);
             $aprobado = Notas::aprobada($promedio);
             $nota = round($promedio, 1);
@@ -54,9 +58,74 @@ class EvaluacionesPractica
             ]);
             $p->update(['nota_practica' => $nota, 'estado' => 'finalizada', 'finalizada_at' => now()]);
 
-            Auditoria::registrar('practica.evaluar', 'practica', $p->id, ['promedio' => $promedio, 'aprobado' => $aprobado]);
+            // Cargar relaciones para identificar actor y afectado
+            $p->loadMissing(['practicante.postulante', 'consultorio.region']);
+            $abogado->loadMissing('usuario');
+            $postulante = $p->practicante?->postulante ?? $p->postulacion?->postulante;
 
-            if ($usuario = $p->practicante->usuario_id) {
+            // Desglose de los 7 criterios reglamentarios institucionales
+            $criteriosDetalle = [];
+            foreach (Notas::CRITERIOS as $clave => $etiqueta) {
+                $val = isset($puntajes[$clave]) ? (float) $puntajes[$clave] : null;
+                $criteriosDetalle[$clave] = [
+                    'etiqueta' => $etiqueta,
+                    'nota' => $val,
+                    'concepto' => Notas::concepto($val),
+                ];
+            }
+
+            $datosAuditoria = [
+                'antes' => [
+                    'estado' => $estadoPrevio,
+                    'nota_practica' => $notaPrevia,
+                    'evaluacion_id' => null,
+                ],
+                'despues' => [
+                    'estado' => 'finalizada',
+                    'nota_practica' => $nota,
+                    'promedio' => $promedio,
+                    'concepto' => Notas::concepto($nota),
+                    'aprobado' => $aprobado,
+                    'criterios' => $puntajes,
+                    'criterios_detalle' => $criteriosDetalle,
+                    'observaciones' => $observaciones,
+                ],
+                'actor' => [
+                    'usuario_id' => $abogado->usuario_id,
+                    'abogado_id' => $abogado->id,
+                    'nombre' => $abogado->usuario?->nombre_completo ?? 'Tutor',
+                    'rut' => $abogado->usuario?->rut,
+                ],
+                'afectado' => [
+                    'postulante_id' => $postulante?->id,
+                    'practicante_id' => $p->practicante_id,
+                    'rut' => $postulante?->rut,
+                    'nombre' => $postulante?->nombre_completo,
+                ],
+                'consultorio' => [
+                    'id' => $p->consultorio_id,
+                    'nombre' => $p->consultorio?->nombre,
+                    'region' => $p->consultorio?->region?->nombre ?? $p->consultorio?->region?->codigo,
+                ],
+                // Claves de conveniencia para filtros rápidos y consultas de auditoría
+                'postulante_rut' => $postulante?->rut,
+                'postulante_nombre' => $postulante?->nombre_completo,
+                'promedio' => $promedio,
+                'nota' => $nota,
+                'concepto' => Notas::concepto($nota),
+                'aprobado' => $aprobado,
+                'observaciones' => $observaciones,
+            ];
+
+            Auditoria::registrar(
+                'practica.evaluar',
+                'practica',
+                $p->id,
+                $datosAuditoria,
+                $abogado->usuario_id ?? auth()->id()
+            );
+
+            if ($usuario = $p->practicante?->usuario_id) {
                 Notificaciones::crear(
                     $usuario, 'aviso', 'Práctica evaluada',
                     $aprobado

@@ -34,7 +34,7 @@
             <div class="alerta alerta-error" role="alert"><div><strong>Revisa los campos marcados.</strong> No se guardó ningún cambio.</div></div>
         @endif
 
-        <form method="POST" action="{{ route('postulante.datos.guardar') }}" data-paso-datos novalidate class="post-form">
+        <form method="POST" action="{{ route('postulante.datos.guardar') }}" enctype="multipart/form-data" data-paso-datos data-paso-archivos novalidate class="post-form">
             @csrf
 
             <fieldset class="bloque">
@@ -94,8 +94,66 @@
             <fieldset class="bloque">
                 <legend>Estudios</legend>
                 <div class="rejilla-campos">
-                    <div class="ancho-completo"><x-campo name="universidad" label="Universidad" :value="$p->universidad" :obligatorio="true" /></div>
+                    <div class="ancho-completo"><x-selector-universidad name="universidad" label="Universidad" :value="$p->universidad" :obligatorio="true" placeholder="Escriba para buscar o seleccionar su universidad..." ayuda="Seleccione de la lista oficial o indique su institución si no figura en el catálogo." /></div>
                     <div class="ancho-completo"><x-campo name="especialidad_id" label="Especialidad de interés" :value="$p->especialidad_id" :opciones="$especialidades->pluck('nombre', 'id')" :obligatorio="true" /></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bloque">
+                <legend>Cédula de identidad</legend>
+                <p class="texto-suave bloque-nota">
+                    Puedes volver a subir o actualizar cada lado de tu cédula si necesitas corregir la imagen o documento. Si no deseas cambiarla, déjala sin modificar para conservar tus archivos actuales.
+                </p>
+                <div class="rejilla-campos">
+                    @php
+                        $docCedulaFrontal = $documentos->get('cedula_frontal');
+                        $docCedulaReverso = $documentos->get('cedula_reverso');
+                    @endphp
+                    <div>
+                        <x-postulacion.cedula name="cedula_frontal" titulo="Cédula, lado frontal" :archivo="$docCedulaFrontal" />
+                        @if ($docCedulaFrontal)
+                            <div style="margin-top:.4rem; font-size:.84rem;">
+                                <a href="{{ route('documentos.ver', $docCedulaFrontal->id) }}" target="_blank" rel="noopener" class="enlace">
+                                    Ver documento actual cargado ({{ $docCedulaFrontal->nombre_original }})
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                    <div>
+                        <x-postulacion.cedula name="cedula_reverso" titulo="Cédula, lado reverso" :archivo="$docCedulaReverso" />
+                        @if ($docCedulaReverso)
+                            <div style="margin-top:.4rem; font-size:.84rem;">
+                                <a href="{{ route('documentos.ver', $docCedulaReverso->id) }}" target="_blank" rel="noopener" class="enlace">
+                                    Ver documento actual cargado ({{ $docCedulaReverso->nombre_original }})
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="bloque">
+                <legend>Certificado de egreso</legend>
+                <p class="texto-suave bloque-nota">
+                    Acredita tu condición de egresado/a de la carrera de Derecho emitida por tu universidad. Si necesitas reemplazar el documento actual, selecciona un nuevo archivo (PDF, JPG o PNG, hasta 8 MB). Si deseas conservarlo, déjalo sin modificar.
+                </p>
+                <div class="rejilla-campos">
+                    @php $docEgreso = $documentos->get('certificado_egreso'); @endphp
+                    <div class="ancho-completo">
+                        @if ($docEgreso)
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:.5rem; padding:.75rem 1rem; margin-bottom:.75rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                                <div>
+                                    <span style="font-size:.78rem; color:#64748b; text-transform:uppercase; font-weight:700; display:block;">Certificado de egreso actual</span>
+                                    <strong style="color:#0f172a;">{{ $docEgreso->nombre_original }}</strong>
+                                    <span class="texto-suave" style="font-size:.82rem;">({{ number_format($docEgreso->tamano_bytes / 1024, 0, ',', '.') }} KB · Subido el {{ $docEgreso->created_at->format('d-m-Y H:i') }})</span>
+                                </div>
+                                <a href="{{ route('documentos.ver', $docEgreso->id) }}" target="_blank" rel="noopener" class="btn btn-secundario btn-sm">
+                                    Ver actual
+                                </a>
+                            </div>
+                        @endif
+                        <x-campo name="certificado_egreso" label="Subir nuevo certificado de egreso" type="file" accept=".pdf,image/png,image/jpeg" :obligatorio="false" ayuda="Elija un archivo solo si necesita reemplazar el certificado de egreso actual." data-max-mb="8" />
+                    </div>
                 </div>
             </fieldset>
 
@@ -106,6 +164,16 @@
                 <x-boton type="submit">Guardar cambios</x-boton>
             </div>
         </form>
+
+        <x-modal id="modal-camara" titulo="Escanear cédula" class="modal-camara">
+            <div class="camara" data-camara-caja>
+                <video playsinline muted autoplay data-camara-video></video>
+                <div class="camara-guia" aria-hidden="true"></div>
+                <p class="camara-estado" data-camara-estado role="status"></p>
+            </div>
+            <p class="texto-suave" style="margin:.75rem 0 0;font-size:.88rem">Encuadre la cédula dentro del marco, con buena luz y sin reflejos.</p>
+            <x-slot:pie><button type="button" class="btn btn-primario" data-camara-capturar>Tomar foto</button></x-slot:pie>
+        </x-modal>
     </div>
 </div>
 @endsection

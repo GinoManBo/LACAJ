@@ -102,10 +102,14 @@ final class Notas
      */
     public static function valorDesdeConcepto(string|float|int|null $concepto): float
     {
-        if (is_numeric($concepto)) {
-            return (float) $concepto;
+        if ($concepto === null) {
+            return 5.0;
         }
-        $c = strtoupper(str_replace(' ', '_', trim((string) $concepto)));
+        $cStr = str_replace(',', '.', trim((string) $concepto));
+        if (is_numeric($cStr)) {
+            return (float) $cStr;
+        }
+        $c = strtoupper(str_replace(' ', '_', $cStr));
         if (isset(self::OPCIONES[$c])) {
             return (float) self::OPCIONES[$c]['valor'];
         }

@@ -62,16 +62,35 @@ class CertificadosPractica
             $cert = Certificado::where('practica_id', $p->id)->where('tipo', self::RESOLUCION)->lockForUpdate()->first();
 
             if (! $cert) {
-                $anio = (int) now()->year;
-                DB::table('resolucion_secuencia')->insertOrIgnore(['anio' => $anio, 'ultimo_numero' => 0]);
-                $sec = DB::table('resolucion_secuencia')->where('anio', $anio)->lockForUpdate()->first();
-                $numero = $sec->ultimo_numero + 1;
-                DB::table('resolucion_secuencia')->where('anio', $anio)->update(['ultimo_numero' => $numero]);
+                $anio = (int) ($p->resolucion_anio ?: now()->year);
+                $numero = $p->resolucion_numero;
+
+                if (! $numero) {
+                    DB::table('resolucion_secuencia')->insertOrIgnore(['anio' => $anio, 'ultimo_numero' => 0]);
+                    $sec = DB::table('resolucion_secuencia')->where('anio', $anio)->lockForUpdate()->first();
+                    $numero = $sec->ultimo_numero + 1;
+                    DB::table('resolucion_secuencia')->where('anio', $anio)->update(['ultimo_numero' => $numero]);
+                }
 
                 $cert = Certificado::create([
-                    'practica_id' => $p->id, 'tipo' => self::RESOLUCION, 'numero_resolucion' => $numero,
-                    'anio' => $anio, 'fecha_emision' => now()->toDateString(), 'emitido_por' => $emisor->id,
+                    'practica_id' => $p->id,
+                    'tipo' => self::RESOLUCION,
+                    'numero_resolucion' => (int) preg_replace('/\D/', '', (string) $numero),
+                    'anio' => $anio,
+                    'fecha_emision' => now()->toDateString(),
+                    'emitido_por' => $emisor->id,
                 ]);
+            } else {
+                if ($p->resolucion_numero) {
+                    $numEntero = (int) preg_replace('/\D/', '', (string) $p->resolucion_numero);
+                    $anioNuevo = (int) ($p->resolucion_anio ?: $cert->anio);
+                    if ($cert->numero_resolucion !== $numEntero || $cert->anio !== $anioNuevo) {
+                        $cert->update([
+                            'numero_resolucion' => $numEntero,
+                            'anio' => $anioNuevo,
+                        ]);
+                    }
+                }
             }
 
             return Pdf::loadView('pdf.resolucion', self::datos($p) + ['certificado' => $cert])->setPaper('a4')->output();

@@ -76,9 +76,24 @@
 @else
     <x-tabla :columnas="['Postulante', 'Universidad', 'Postuló a', 'Contacto', 'Fecha']" descripcion="Postulaciones pendientes de la región">
         @foreach ($postulaciones as $p)
-            @php $po = $p->postulante; $pref = $p->preferencias->sortBy('orden')->values(); @endphp
+            @php
+                $po = $p->postulante;
+                $pref = $p->preferencias->sortBy('orden')->values();
+                $cancList = ($cancelacionesPorRut ?? collect())->get($po?->rut);
+                $cancPr = $cancList && $cancList->isNotEmpty() ? $cancList->first() : null;
+            @endphp
             <tr data-href="{{ route('secretaria.postulaciones.ver', $p->id) }}">
-                <td><a href="{{ route('secretaria.postulaciones.ver', $p->id) }}"><strong>{{ $po->nombre }} {{ $po->apellido }}</strong></a>@if ($po->rut)<span class="sec-menor">{{ $po->rut }}</span>@elseif ($p->origen === 'excel')<span class="sec-tag sec-tag-nuevo imp-tag">Datos por completar</span>@endif @if ($po->datos_actualizados_at)<span class="sec-tag sec-tag-otra">Datos actualizados</span>@endif</td>
+                <td>
+                    <a href="{{ route('secretaria.postulaciones.ver', $p->id) }}"><strong>{{ $po->nombre }} {{ $po->apellido }}</strong></a>
+                    @if ($po->rut)<span class="sec-menor">{{ $po->rut }}</span>@elseif ($p->origen === 'excel')<span class="sec-tag sec-tag-nuevo imp-tag">Datos por completar</span>@endif
+                    @if ($po->datos_actualizados_at)<span class="sec-tag sec-tag-otra">Datos actualizados</span>@endif
+                    @if ($cancPr)
+                        <span class="sec-tag sec-tag-peligro" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;display:inline-flex;align-items:center;gap:.25rem;margin-top:.25rem;" title="Cancelada el {{ $cancPr->cancelacion_fecha?->format('d-m-Y') }} · Motivo: {{ \App\Services\Practicas::textoMotivoCancelacion($cancPr->cancelacion_motivo) }}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            Cancelación previa: {{ \App\Services\Practicas::textoMotivoCancelacion($cancPr->cancelacion_motivo) }}
+                        </span>
+                    @endif
+                </td>
                 <td>{{ $po->universidad }}<span class="sec-menor">{{ ['quinto' => 'Quinto año', 'egresado' => 'Egresado/a'][$po->anio_carrera] ?? ($po->anio_carrera ?: 'Egresado/a') }}</span></td>
                 <td>@if ($pref->isNotEmpty()){{ $pref->first()->consultorio->nombre }}@if ($pref->count() > 1)<span class="sec-menor">+{{ $pref->count() - 1 }} más</span>@endif @else <span class="sec-menor">Sin preferencias</span>@endif</td>
                 <td>{{ $po->email }}<span class="sec-menor">{{ $po->telefono }}</span></td>

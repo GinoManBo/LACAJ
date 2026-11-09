@@ -15,6 +15,7 @@ class Auditoria
             'entidad_id' => $entidadId,
             'datos' => $datos,
             'ip' => request()->ip(),
+            'user_agent' => request()->userAgent() ?: null,
         ]);
     }
 }

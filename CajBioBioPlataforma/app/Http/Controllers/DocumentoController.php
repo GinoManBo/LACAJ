@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Documento;
 use App\Models\Usuario;
 use App\Services\Almacenamiento;
+use App\Services\Auditoria;
 use Illuminate\Http\Request;
 
 class DocumentoController extends Controller
@@ -27,6 +28,15 @@ class DocumentoController extends Controller
 
         $ext = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png'][$doc->mime] ?? null;
         $nombre = $doc->nombre_original ?: ($doc->tipo.($ext ? ".$ext" : ''));
+
+        Auditoria::registrar($disposicion === 'attachment' ? 'documento.descargar' : 'documento.ver', 'documento', $doc->id, [
+            'tipo' => $doc->tipo,
+            'nombre_archivo' => $nombre,
+            'disposicion' => $disposicion,
+            'postulacion_id' => $doc->postulacion_id,
+            'practica_id' => $doc->practica_id,
+            'rut_postulante' => $doc->postulacion?->postulante?->rut ?? $doc->practica?->practicante?->postulante?->rut,
+        ], $request->user()?->id);
 
         return response()->file(Almacenamiento::ruta($doc->nombre_almacenado), [
             'Content-Type' => $doc->mime,

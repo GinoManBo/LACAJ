@@ -48,6 +48,31 @@
             Documento formal emitido a nombre de la Dirección de Acceso a la Justicia para presentación del postulante ante el Consultorio Jurídico y aviso reglamentario de alegatos ante la Corte de Apelaciones.
         </p>
 
+        {{-- Folio / N.º de Registro en Archivos --}}
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.85rem; margin-bottom: 1.25rem;">
+            <form action="{{ route('secretaria.practicas.guardar_folio_carta', $practica->id) }}" method="POST">
+                @csrf
+                <label for="folio_carta_presentacion" style="display: block; font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 0.25rem;">
+                    Número de Registro en Archivos (Folio de la Carta):
+                </label>
+                <div style="display: flex; gap: 0.5rem; align-items: center; max-width: 420px;">
+                    <input type="text" name="folio_carta_presentacion" id="folio_carta_presentacion"
+                           value="{{ old('folio_carta_presentacion', $practica->folio_carta_presentacion) }}"
+                           placeholder="Ej: 17.478"
+                           class="form-control" style="font-size: 0.85rem; padding: 0.4rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 4px; flex: 1;">
+                    <button type="submit" class="btn btn-secundario" style="font-size: 0.85rem; padding: 0.4rem 0.85rem; white-space: nowrap;">
+                        Guardar Folio
+                    </button>
+                </div>
+                <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">
+                    Se imprimirá en la Carta Tipo como: <em>"El número de Registro en nuestros Archivos es el N.º <strong>{{ $practica->numero_registro_carta }}</strong>.-"</em>
+                </div>
+                @error('folio_carta_presentacion')
+                    <p style="color: #dc2626; font-size: 0.8rem; margin-top: 0.25rem;">{{ $message }}</p>
+                @enderror
+            </form>
+        </div>
+
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
             <x-boton tipo="secundario" :href="route('secretaria.practicas.carta_presentacion', $practica->id)" target="_blank">
                 @include('secretaria._icono', ['n' => 'documento']) Descargar Carta Tipo (PDF)

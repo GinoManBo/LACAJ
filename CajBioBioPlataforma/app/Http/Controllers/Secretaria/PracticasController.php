@@ -70,10 +70,36 @@ class PracticasController extends Controller
         $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial']);
         $pdf = CartaPresentacionService::generarPdf($p);
 
+        Auditoria::registrar('practica.descarga_carta_presentacion', 'practica', $p->id, [
+            'rut_postulante' => $p->practicante?->postulante?->rut,
+            'consultorio_id' => $p->consultorio_id,
+        ], $request->user()->id);
+
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="carta-presentacion-practica-'.$p->id.'.pdf"',
         ]);
+    }
+
+    public function guardarFolioCarta(Request $request, int $id)
+    {
+        $p = $this->practica($request, $id, ['por_iniciar', 'activa', 'finalizada', 'remitida_biobio', 'nivelada_biobio', 'cerrada_historial']);
+
+        $request->validate([
+            'folio_carta_presentacion' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $folio = $request->filled('folio_carta_presentacion') ? trim($request->input('folio_carta_presentacion')) : null;
+
+        $p->update([
+            'folio_carta_presentacion' => $folio,
+        ]);
+
+        Auditoria::registrar('practica.folio_carta_actualizado', 'practica', $p->id, [
+            'folio_carta_presentacion' => $folio,
+        ], $request->user()->id);
+
+        return back()->with('ok', 'Número de Registro en Archivos guardado exitosamente. Se reflejará en la Carta de Presentación.');
     }
 
     public function subirCartaPresentacion(Request $request, int $id)
@@ -82,6 +108,7 @@ class PracticasController extends Controller
 
         $request->validate([
             'carta_firmada' => ['required', 'file', 'mimes:pdf', 'max:5120'],
+            'folio_carta_presentacion' => ['nullable', 'string', 'max:50'],
         ], [
             'carta_firmada.required' => 'Seleccione el archivo PDF con la Carta de Presentación firmada.',
             'carta_firmada.mimes' => 'El archivo debe ser un documento PDF.',
@@ -90,11 +117,17 @@ class PracticasController extends Controller
 
         $guardado = Almacenamiento::guardar($request->file('carta_firmada'));
 
-        $p->update([
+        $datosUpdate = [
             'carta_presentacion_firmada' => $guardado['nombre_almacenado'],
             'carta_presentacion_subida_at' => now(),
             'estado' => 'activa', // Inicio manual oficial
-        ]);
+        ];
+
+        if ($request->filled('folio_carta_presentacion')) {
+            $datosUpdate['folio_carta_presentacion'] = trim($request->input('folio_carta_presentacion'));
+        }
+
+        $p->update($datosUpdate);
 
         Auditoria::registrar('practica.carta_presentacion_firmada', 'practica', $p->id, [
             'archivo' => $guardado['nombre_original'],
@@ -121,6 +154,11 @@ class PracticasController extends Controller
         if (! $p->carta_presentacion_firmada || ! Almacenamiento::existe($p->carta_presentacion_firmada)) {
             abort(404, 'No se ha encontrado la carta de presentación firmada.');
         }
+
+        Auditoria::registrar('practica.ver_carta_firmada', 'practica', $p->id, [
+            'origen' => 'secretaria',
+            'rut_postulante' => $p->practicante?->postulante?->rut,
+        ], $request->user()->id);
 
         return response()->file(Almacenamiento::ruta($p->carta_presentacion_firmada), [
             'Content-Type' => 'application/pdf',
@@ -182,6 +220,18 @@ class PracticasController extends Controller
         }
         $w->close();
 
+        Auditoria::registrar('practica.exportar_regional', 'practica', null, [
+            'total_registros' => $practicas->count(),
+            'region_id' => $region,
+            'filtros' => array_filter([
+                'q' => $request->query('q'),
+                'estado' => $request->query('estado'),
+                'consultorio_id' => $request->query('consultorio_id'),
+                'abogado_id' => $request->query('abogado_id'),
+            ]),
+            'motivo' => 'Descarga nómina regional de prácticas activas (Ley N.° 19.628)',
+        ], $request->user()->id);
+
         return response()->download($ruta, 'practicas-activas-'.now()->format('Y-m-d').'.xlsx')->deleteFileAfterSend();
     }
 
@@ -208,6 +258,11 @@ class PracticasController extends Controller
             'motivo' => Practicas::MOTIVOS_CANCELACION[$p->cancelacion_motivo] ?? $p->cancelacion_motivo,
             'emitidoPor' => $request->user(),
         ]);
+
+        Auditoria::registrar('practica.descarga_documento_cancelacion', 'practica', $p->id, [
+            'rut_postulante' => $p->practicante?->postulante?->rut,
+            'motivo_cancelacion' => $p->cancelacion_motivo,
+        ], $request->user()->id);
 
         return $pdf->download('cancelacion-practica-'.$p->id.'.pdf');
     }

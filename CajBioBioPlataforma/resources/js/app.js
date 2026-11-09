@@ -129,6 +129,72 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('tr[data-href]').forEach((tr) =>
         tr.addEventListener('click', (e) => { if (!e.target.closest('a,button')) window.location = tr.dataset.href; }));
 
+    // Notificaciones dropdown
+    const btnCampana = document.getElementById('btn-campana');
+    const dropdownNotif = document.getElementById('dropdown-notificaciones');
+    const contenedorNotif = document.getElementById('contenedor-notificaciones');
+
+    if (btnCampana && dropdownNotif) {
+        let leidasEnviadas = false;
+
+        const abrirDropdown = () => {
+            dropdownNotif.removeAttribute('hidden');
+            btnCampana.setAttribute('aria-expanded', 'true');
+
+            const contador = document.getElementById('campana-contador');
+            const badgeNoLeidas = document.getElementById('dropdown-badge-noleidas');
+            if (contador || badgeNoLeidas) {
+                if (contador) contador.remove();
+                if (badgeNoLeidas) badgeNoLeidas.remove();
+                btnCampana.setAttribute('aria-label', 'Notificaciones');
+
+                const urlLeer = btnCampana.dataset.urlLeer;
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                if (urlLeer && csrfToken && !leidasEnviadas) {
+                    leidasEnviadas = true;
+                    fetch(urlLeer, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                    }).catch(() => {
+                        leidasEnviadas = false;
+                    });
+                }
+            }
+        };
+
+        const cerrarDropdown = () => {
+            dropdownNotif.setAttribute('hidden', '');
+            btnCampana.setAttribute('aria-expanded', 'false');
+        };
+
+        btnCampana.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdownNotif.hasAttribute('hidden')) {
+                abrirDropdown();
+            } else {
+                cerrarDropdown();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdownNotif.hasAttribute('hidden') && !contenedorNotif?.contains(e.target)) {
+                cerrarDropdown();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !dropdownNotif.hasAttribute('hidden')) {
+                cerrarDropdown();
+                btnCampana.focus();
+            }
+        });
+    }
+
     document.querySelectorAll('form').forEach((f) =>
         f.addEventListener('submit', (e) => {
             setTimeout(() => {
