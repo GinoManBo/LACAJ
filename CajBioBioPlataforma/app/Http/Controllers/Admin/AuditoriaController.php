@@ -31,6 +31,7 @@ class AuditoriaController extends Controller
                 $query->where('accion', 'like', "%{$q}%")
                     ->orWhere('entidad', 'like', "%{$q}%")
                     ->orWhere('ip', 'like', "%{$q}%")
+                    ->orWhere('user_agent', 'like', "%{$q}%")
                     ->orWhereHas('usuario', fn ($u) => $u
                         ->where('nombre', 'like', "%{$q}%")
                         ->orWhere('apellido', 'like', "%{$q}%")
@@ -103,6 +104,7 @@ class AuditoriaController extends Controller
                 $query->where('accion', 'like', "%{$q}%")
                     ->orWhere('entidad', 'like', "%{$q}%")
                     ->orWhere('ip', 'like', "%{$q}%")
+                    ->orWhere('user_agent', 'like', "%{$q}%")
                     ->orWhereHas('usuario', fn ($u) => $u
                         ->where('nombre', 'like', "%{$q}%")
                         ->orWhere('apellido', 'like', "%{$q}%")
@@ -148,6 +150,7 @@ class AuditoriaController extends Controller
             'Entidad',
             'ID Entidad',
             'Dirección IP',
+            'User-Agent / Navegador',
             'Detalles / Payload JSON',
         ]));
 
@@ -164,6 +167,7 @@ class AuditoriaController extends Controller
                 $r->entidad,
                 $r->entidad_id ?? '—',
                 $r->ip ?? '—',
+                $r->user_agent ?? '—',
                 $r->datos ? json_encode($r->datos, JSON_UNESCAPED_UNICODE) : '—',
             ]));
         }

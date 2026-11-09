@@ -29,7 +29,7 @@
     <form method="GET" action="{{ route('admin.auditoria.index') }}" class="filtros-grilla" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
         <div style="flex: 1; min-width: 220px;">
             <label for="q" class="campo-etiqueta" style="font-size:0.85rem; font-weight:600; margin-bottom:0.25rem; display:block;">Búsqueda general</label>
-            <input type="text" id="q" name="q" value="{{ $q }}" placeholder="Acción, usuario, RUT, IP..." class="campo-control" style="width:100%;">
+            <input type="text" id="q" name="q" value="{{ $q }}" placeholder="Acción, usuario, RUT, IP, navegador..." class="campo-control" style="width:100%;">
         </div>
         <div style="min-width: 180px;">
             <label for="accion" class="campo-etiqueta" style="font-size:0.85rem; font-weight:600; margin-bottom:0.25rem; display:block;">Acción ejecutada</label>
@@ -81,7 +81,7 @@
                     <th>Usuario Responsable</th>
                     <th>Acción</th>
                     <th>Entidad / ID</th>
-                    <th>IP</th>
+                    <th style="width: 170px;">IP / Navegador</th>
                     <th>Detalle / Payload JSON</th>
                 </tr>
             </thead>
@@ -128,7 +128,12 @@
                             @endif
                         </td>
                         <td style="font-size:0.8rem; font-family:monospace; color:#64748b;">
-                            {{ $r->ip ?? '—' }}
+                            <div>{{ $r->ip ?? '—' }}</div>
+                            @if ($r->user_agent)
+                                <div style="font-size:0.7rem; color:#94a3b8; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:sans-serif;" title="{{ $r->user_agent }}">
+                                    {{ $r->user_agent }}
+                                </div>
+                            @endif
                         </td>
                         <td style="font-size:0.8rem;">
                             @if ($r->datos && count($r->datos) > 0)
