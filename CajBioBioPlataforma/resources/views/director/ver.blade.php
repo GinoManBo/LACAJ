@@ -180,13 +180,87 @@
     @endif
 
     @if ($puedeModificar)
-        <form method="POST" action="{{ route('director.validar', $practica->id) }}" onsubmit="return confirm('¿Confirma la resolución y calificación directiva para este expediente?');">
+        <form method="POST" action="{{ route('director.validar', $practica->id) }}" id="form-visacion-ucoe" onsubmit="return confirm('¿Confirma la resolución y calificación directiva para este expediente?');">
             @csrf
             
+            <!-- Bloque de Edición y Ajuste por Criterio / Factor -->
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;">
-                <label class="campo-etiqueta" style="font-weight:700; font-size:0.95rem; margin-bottom:0.75rem; display:block; color:#1e293b;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.85rem;">
+                    <div>
+                        <label class="campo-etiqueta" style="font-weight:700; font-size:0.95rem; margin:0; color:#1e293b; display:block;">
+                            Revisión y Calificación por Criterio (7 Factores Reglamentarios):
+                        </label>
+                        <p style="font-size:0.8rem; color:#64748b; margin:0.15rem 0 0;">
+                            {{ $esUcoe ? 'UCOE' : 'Dirección Regional' }} posee la atribución reglamentaria de revisar, ratificar o ajustar individualmente cada factor evaluativo.
+                        </p>
+                    </div>
+                    <div id="aviso-criterio-modificado" style="background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:0.25rem 0.6rem; border-radius:6px; font-size:0.75rem; font-weight:600;" hidden>
+                        ⚠️ Criterios modificados respecto a la propuesta original
+                    </div>
+                </div>
+
+                <div class="tabla-contenedor" style="background:#ffffff; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:0.75rem;">
+                    <table class="tabla" style="margin:0;">
+                        <thead>
+                            <tr style="background:#f8fafc;">
+                                <th style="width:40%;">Factor / Criterio Reglamentario</th>
+                                <th style="width:24%; text-align:center;">Propuesta 1ª Instancia</th>
+                                <th style="width:36%;">Calificación {{ $esUcoe ? 'UCOE' : 'Dirección' }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($criterios as $c)
+                                @php
+                                    $cCampo = $c['campo'] ?? '';
+                                    $valOriginal = $c['clave'] ?? 'BUENA';
+                                    $valSel = old('criterios.'.$cCampo, $valOriginal);
+                                @endphp
+                                <tr data-fila-criterio="{{ $cCampo }}">
+                                    <td style="font-weight:600; font-size:0.88rem; color:#1e293b;">
+                                        {{ $c['etiqueta'] }}
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span class="badge" style="background:#f1f5f9; color:#475569; font-weight:600; font-size:0.8rem;">
+                                            {{ $c['concepto'] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <select name="criterios[{{ $cCampo }}]" class="campo-control select-criterio-ucoe" style="width:100%; padding:0.35rem 0.5rem; font-size:0.86rem;" data-criterio-campo="{{ $cCampo }}" data-valor-original="{{ $valOriginal }}">
+                                            @foreach ($opcionesNotas as $cClave => $opc)
+                                                <option value="{{ $cClave }}" @selected($valSel === $cClave) data-valor="{{ $opc['valor'] }}">
+                                                    {{ $opc['nombre'] }} ({{ $opc['aprobatorio'] ? 'Aprobatorio' : 'Reprobatorio' }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#f1f5f9; font-weight:700;">
+                                <td colspan="2" style="font-size:0.9rem; color:#0f172a;">
+                                    Promedio Calculado de Factores Reglamentarios:
+                                </td>
+                                <td style="font-size:0.9rem;">
+                                    <span id="promedio-criterio-concepto" class="badge" style="background:#dbeafe; color:#1e40af; font-size:0.95rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:6px;">
+                                        {{ $conceptoFinal }}
+                                    </span>
+                                    <span id="promedio-criterio-valor" style="color:#64748b; font-size:0.8rem; font-weight:500; margin-left:0.35rem;"></span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque de Calificación Final en Palabras -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;">
+                <label class="campo-etiqueta" style="font-weight:700; font-size:0.95rem; margin-bottom:0.35rem; display:block; color:#1e293b;">
                     Calificación Final Directiva (Escala Institucional en Palabras):
                 </label>
+                <p style="font-size:0.8rem; color:#64748b; margin:0 0 0.75rem;">
+                    Se actualiza automáticamente según el promedio ponderado de los 7 criterios. Puede seleccionar una calificación directiva en palabras si corresponde.
+                </p>
 
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem;">
                     @foreach ($opcionesNotas as $clave => $opc)
@@ -216,18 +290,18 @@
 
             <div style="margin-bottom: 1.25rem;">
                 <label for="observaciones_director" class="campo-etiqueta" style="font-weight:600; font-size:0.875rem; margin-bottom:0.35rem; display:block;">
-                    Observaciones o Justificación de la Dirección:
+                    Observaciones o Justificación de la Dirección / UCOE:
                 </label>
-                <textarea id="observaciones_director" name="observaciones_director" rows="3" class="campo-control" style="width:100%;" placeholder="Ingrese comentarios institucionales, fundamentación en caso de modificar la nota propuesta, o constancia de revisión...">{{ old('observaciones_director', $practica->observaciones_director) }}</textarea>
-                <span style="font-size:0.75rem; color:#64748b;">Obligatorio si modifica la calificación respecto a la propuesta original del Abogado Jefe.</span>
+                <textarea id="observaciones_director" name="observaciones_director" rows="3" class="campo-control" style="width:100%;" placeholder="Ingrese comentarios institucionales, fundamentación en caso de modificar criterios o la nota propuesta, o constancia de revisión...">{{ old('observaciones_director', $practica->observaciones_director) }}</textarea>
+                <span style="font-size:0.75rem; color:#64748b;">Obligatorio si modifica los criterios o la calificación respecto a la propuesta original del Abogado Jefe. Toda modificación quedará asentada en el log inmutable de auditoría.</span>
             </div>
 
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
                 <p style="font-size:0.85rem; color:#64748b; margin:0; max-width:600px;">
-                    Al guardar, la calificación final quedará visada institucionalmente y el expediente quedará habilitado para su remisión formal a Jurídica Central Concepción.
+                    Al guardar, las calificaciones por criterio y la nota final quedarán visadas institucionalmente y registradas en auditoría. El expediente quedará habilitado para su remisión formal a Jurídica Central Concepción.
                 </p>
                 <x-boton type="submit" tipo="primario" style="background:#16a34a; border-color:#16a34a;">
-                    {{ $practica->validada_director_at ? 'Actualizar Calificación y Visación' : 'Validar / Fijar Calificación y Visar' }}
+                    {{ $practica->validada_director_at ? 'Actualizar Calificación, Criterios y Visación' : 'Validar / Fijar Calificación y Visar' }}
                 </x-boton>
             </div>
         </form>
@@ -237,4 +311,161 @@
         </div>
     @endif
 </div>
+
+<!-- Historial Inmutable de Auditoría -->
+@if (isset($historialAuditoria) && $historialAuditoria->isNotEmpty())
+    <div class="tarjeta" style="margin-top: 1.5rem; padding: 1.25rem; border-top: 3px solid #64748b;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+            <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:0.5rem;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Historial de Auditoría y Modificaciones de Notas
+            </h3>
+            <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.8rem;">
+                {{ $historialAuditoria->count() }} {{ $historialAuditoria->count() === 1 ? 'registro' : 'registros' }}
+            </span>
+        </div>
+
+        <div class="tabla-contenedor">
+            <table class="tabla" style="font-size:0.86rem;">
+                <thead>
+                    <tr>
+                        <th style="width:140px;">Fecha / Hora</th>
+                        <th>Operador Responsable</th>
+                        <th>Acción</th>
+                        <th>Detalle de Cambios en Criterios y Notas</th>
+                        <th>Justificación / Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($historialAuditoria as $log)
+                        @php
+                            $u = $log->usuario;
+                            $datos = $log->datos ?? [];
+                            $modificados = $datos['criterios_modificados'] ?? [];
+                        @endphp
+                        <tr>
+                            <td style="white-space:nowrap; color:#64748b;">
+                                {{ $log->created_at ? $log->created_at->format('d/m/Y H:i:s') : '—' }}
+                            </td>
+                            <td>
+                                <strong>{{ $u ? $u->nombre_completo : 'Sistema' }}</strong>
+                                <div style="font-size:0.75rem; color:#64748b;">{{ $datos['usuario_rol'] ?? ($u?->rol ?? '—') }} &bull; {{ $log->ip }}</div>
+                            </td>
+                            <td>
+                                <span class="badge" style="background:{{ str_contains($log->accion, 'modificar') ? '#fef3c7; color:#b45309;' : '#dcfce7; color:#15803d;' }}; font-weight:600;">
+                                    {{ $log->accion }}
+                                </span>
+                            </td>
+                            <td>
+                                @if (!empty($modificados))
+                                    <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                                        <strong style="color:#b45309; font-size:0.8rem;">Criterios Modificados ({{ count($modificados) }}):</strong>
+                                        <ul style="margin:0; padding-left:1.1rem; font-size:0.8rem;">
+                                            @foreach ($modificados as $critKey => $cambio)
+                                                <li>
+                                                    <strong>{{ $cambio['criterio'] ?? $critKey }}:</strong>
+                                                    <span style="color:#64748b; text-decoration:line-through;">{{ $cambio['concepto_anterior'] ?? $cambio['nota_anterior'] }}</span>
+                                                    &rarr;
+                                                    <strong style="color:#0f766e;">{{ $cambio['concepto_nuevo'] ?? $cambio['nota_nueva'] }}</strong>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                                @if (!empty($datos['nota_fijada']) || !empty($datos['concepto_fijado']))
+                                    <div style="margin-top:0.25rem; font-size:0.8rem; color:#334155;">
+                                        Calificación final: 
+                                        @if (!empty($datos['concepto_anterior']) && $datos['concepto_anterior'] !== $datos['concepto_fijado'])
+                                            <span style="color:#64748b; text-decoration:line-through;">{{ $datos['concepto_anterior'] }}</span> &rarr;
+                                        @endif
+                                        <strong>{{ $datos['concepto_fijado'] ?? $datos['nota_fijada'] }}</strong>
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="color:#334155; font-size:0.82rem; white-space:pre-line;">
+                                {{ $datos['observaciones'] ?? '—' }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+@endif
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selects = document.querySelectorAll('.select-criterio-ucoe');
+    const promedioConcepto = document.getElementById('promedio-criterio-concepto');
+    const promedioValor = document.getElementById('promedio-criterio-valor');
+    const radioConceptos = document.querySelectorAll('input[name="concepto"]');
+    const avisoModificacion = document.getElementById('aviso-criterio-modificado');
+
+    if (!selects.length) return;
+
+    const valores = {
+        'SOBRESALIENTE': 7.0,
+        'BUENA': 5.0,
+        'REGULAR': 4.0,
+        'MALA': 3.0
+    };
+
+    function calcular() {
+        let suma = 0;
+        let count = 0;
+        let huboCambio = false;
+
+        selects.forEach(function (sel) {
+            const valClave = sel.value;
+            const valNum = valores[valClave] || 5.0;
+            suma += valNum;
+            count++;
+
+            const valOriginal = sel.getAttribute('data-valor-original');
+            const fila = sel.closest('tr');
+            if (valOriginal && valClave !== valOriginal) {
+                huboCambio = true;
+                if (fila) fila.style.backgroundColor = '#fefce8';
+            } else {
+                if (fila) fila.style.backgroundColor = '';
+            }
+        });
+
+        if (count === 0) return;
+        const promedio = Math.round((suma / count) * 100) / 100;
+        let concepto = 'Mala';
+        let conceptoClave = 'MALA';
+
+        if (promedio >= 6.0) {
+            concepto = 'Sobresaliente';
+            conceptoClave = 'SOBRESALIENTE';
+        } else if (promedio >= 5.0) {
+            concepto = 'Buena';
+            conceptoClave = 'BUENA';
+        } else if (promedio >= 4.0) {
+            concepto = 'Regular';
+            conceptoClave = 'REGULAR';
+        }
+
+        if (promedioConcepto) promedioConcepto.textContent = concepto;
+        if (promedioValor) promedioValor.textContent = 'Promedio: ' + promedio.toFixed(2);
+
+        if (avisoModificacion) {
+            avisoModificacion.hidden = !huboCambio;
+        }
+
+        radioConceptos.forEach(function (r) {
+            if (r.value === conceptoClave) {
+                r.checked = true;
+            }
+        });
+    }
+
+    selects.forEach(function (sel) {
+        sel.addEventListener('change', calcular);
+    });
+
+    calcular();
+});
+</script>
 @endsection

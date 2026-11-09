@@ -176,13 +176,32 @@ function iniciarArchivos() {
 function iniciarConsultorios() {
     const form = document.querySelector('[data-paso-consultorios]');
     if (!form) return;
+    const MAX_CONSULTORIOS = 3;
     const grupo = form.querySelector('[data-hidden-cons]').closest('[data-grupo-obligatorio]');
     const contenedor = form.querySelector('[data-hidden-cons]');
     const listaOrden = form.querySelector('[data-orden-lista]');
     const vacio = form.querySelector('[data-orden-vacio]');
+    const avisoMax = form.querySelector('[data-aviso-max]');
+    const contador = form.querySelector('[data-contador-cons]');
     const items = [...form.querySelectorAll('[data-item]')];
     const botones = new Map(items.map((li) => { const b = li.querySelector('.cons-item'); return [Number(b.dataset.id), b]; }));
-    let orden = [...contenedor.querySelectorAll('input')].map((i) => Number(i.value)).filter((id) => botones.has(id));
+    let orden = [...contenedor.querySelectorAll('input')].map((i) => Number(i.value)).filter((id) => botones.has(id)).slice(0, MAX_CONSULTORIOS);
+
+    const actualizarContador = () => {
+        if (!contador) return;
+        const total = orden.length;
+        if (total >= MAX_CONSULTORIOS) {
+            contador.textContent = `${total} de ${MAX_CONSULTORIOS} (Máximo alcanzado)`;
+            contador.style.background = '#fef2f2';
+            contador.style.color = '#991b1b';
+            contador.style.borderColor = '#fca5a5';
+        } else {
+            contador.textContent = `${total} de ${MAX_CONSULTORIOS} elegidos`;
+            contador.style.background = '';
+            contador.style.color = '';
+            contador.style.borderColor = '';
+        }
+    };
 
     const render = () => {
         contenedor.replaceChildren(...orden.map((id) => {
@@ -208,10 +227,24 @@ function iniciarConsultorios() {
             b.setAttribute('aria-pressed', String(pos >= 0));
             b.querySelector('.cons-marca').textContent = pos >= 0 ? pos + 1 : '';
         });
+        actualizarContador();
     };
 
     function alternar(id) {
-        orden = orden.includes(id) ? orden.filter((x) => x !== id) : [...orden, id];
+        if (orden.includes(id)) {
+            orden = orden.filter((x) => x !== id);
+            if (avisoMax) avisoMax.style.display = 'none';
+        } else {
+            if (orden.length >= MAX_CONSULTORIOS) {
+                if (avisoMax) {
+                    avisoMax.style.display = 'block';
+                    avisoMax.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                return;
+            }
+            if (avisoMax) avisoMax.style.display = 'none';
+            orden = [...orden, id];
+        }
         render();
         if (orden.length) window.cajLimpiarGrupo?.(grupo);
     }
@@ -333,10 +366,220 @@ function iniciarCalendario() {
     dibujar();
 }
 
+function iniciarSelectorUniversidad() {
+    const contenedores = document.querySelectorAll('[data-selector-universidad]');
+    if (!contenedores.length) return;
+
+    const norm = (str) => (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    contenedores.forEach((contenedor) => {
+        const inputBusqueda = contenedor.querySelector('.selector-uni-busqueda');
+        const inputValor = contenedor.querySelector('.selector-uni-valor');
+        const desplegable = contenedor.querySelector('.selector-uni-desplegable');
+        const opciones = [...contenedor.querySelectorAll('.selector-uni-opcion')];
+        const sinResultados = contenedor.querySelector('.selector-uni-sin-resultados');
+        const bloqueOtra = contenedor.querySelector('.selector-uni-otra');
+        const inputOtra = contenedor.querySelector('.selector-uni-input-otra');
+        const botonToggle = contenedor.querySelector('.selector-uni-toggle');
+
+        if (!inputBusqueda || !inputValor || !desplegable) return;
+
+        let focoIndex = -1;
+        let opcionesVisibles = [...opciones];
+
+        const abrir = () => {
+            desplegable.style.display = 'block';
+            inputBusqueda.setAttribute('aria-expanded', 'true');
+            filtrar(inputBusqueda.value);
+        };
+
+        const cerrar = () => {
+            desplegable.style.display = 'none';
+            inputBusqueda.setAttribute('aria-expanded', 'false');
+            focoIndex = -1;
+            opciones.forEach((op) => op.classList.remove('en-foco'));
+        };
+
+        const verificarOtra = (val) => {
+            const esOtra = val === 'Otra institución no listada';
+            if (bloqueOtra) {
+                bloqueOtra.style.display = esOtra ? 'block' : 'none';
+                if (inputOtra) {
+                    inputOtra.required = esOtra;
+                    if (esOtra) {
+                        setTimeout(() => inputOtra.focus(), 60);
+                    } else {
+                        inputOtra.value = '';
+                        window.cajLimpiarError?.(inputOtra);
+                    }
+                }
+            }
+        };
+
+        const seleccionar = (opcionElemento) => {
+            const val = opcionElemento.dataset.valor;
+            inputBusqueda.value = val;
+            inputValor.value = val;
+            opciones.forEach((op) => {
+                const sel = op === opcionElemento;
+                op.classList.toggle('es-seleccionada', sel);
+                op.setAttribute('aria-selected', String(sel));
+            });
+            window.cajLimpiarError?.(inputBusqueda);
+            window.cajLimpiarError?.(inputValor);
+            verificarOtra(val);
+            cerrar();
+        };
+
+        const filtrar = (texto) => {
+            const q = norm(texto);
+            let visibles = 0;
+            opcionesVisibles = [];
+
+            opciones.forEach((op) => {
+                const valorOp = op.dataset.valor;
+                const coincide = !q || norm(valorOp).includes(q);
+                op.style.display = coincide ? 'block' : 'none';
+                if (coincide) {
+                    visibles++;
+                    opcionesVisibles.push(op);
+                }
+            });
+
+            if (sinResultados) {
+                sinResultados.style.display = visibles === 0 ? 'block' : 'none';
+            }
+            focoIndex = -1;
+            opciones.forEach((op) => op.classList.remove('en-foco'));
+        };
+
+        inputBusqueda.addEventListener('focus', () => {
+            abrir();
+        });
+
+        inputBusqueda.addEventListener('click', () => {
+            abrir();
+        });
+
+        inputBusqueda.addEventListener('input', () => {
+            abrir();
+            filtrar(inputBusqueda.value);
+            const exacto = opciones.find((op) => norm(op.dataset.valor) === norm(inputBusqueda.value));
+            if (exacto) {
+                inputValor.value = exacto.dataset.valor;
+                verificarOtra(exacto.dataset.valor);
+            } else {
+                inputValor.value = inputBusqueda.value;
+            }
+        });
+
+        botonToggle?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (desplegable.style.display === 'block') {
+                cerrar();
+            } else {
+                inputBusqueda.focus();
+                abrir();
+            }
+        });
+
+        opciones.forEach((op) => {
+            op.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                seleccionar(op);
+            });
+            op.addEventListener('mouseenter', () => {
+                opciones.forEach((o) => o.classList.remove('en-foco'));
+                op.classList.add('en-foco');
+                focoIndex = opcionesVisibles.indexOf(op);
+            });
+        });
+
+        inputBusqueda.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (desplegable.style.display !== 'block') {
+                    abrir();
+                    return;
+                }
+                if (!opcionesVisibles.length) return;
+                focoIndex = (focoIndex + 1) % opcionesVisibles.length;
+                opciones.forEach((op) => op.classList.remove('en-foco'));
+                const enfocado = opcionesVisibles[focoIndex];
+                if (enfocado) {
+                    enfocado.classList.add('en-foco');
+                    enfocado.scrollIntoView({ block: 'nearest' });
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (desplegable.style.display !== 'block') {
+                    abrir();
+                    return;
+                }
+                if (!opcionesVisibles.length) return;
+                focoIndex = (focoIndex - 1 + opcionesVisibles.length) % opcionesVisibles.length;
+                opciones.forEach((op) => op.classList.remove('en-foco'));
+                const enfocado = opcionesVisibles[focoIndex];
+                if (enfocado) {
+                    enfocado.classList.add('en-foco');
+                    enfocado.scrollIntoView({ block: 'nearest' });
+                }
+            } else if (e.key === 'Enter') {
+                if (desplegable.style.display === 'block') {
+                    e.preventDefault();
+                    if (focoIndex >= 0 && opcionesVisibles[focoIndex]) {
+                        seleccionar(opcionesVisibles[focoIndex]);
+                    } else if (opcionesVisibles.length === 1) {
+                        seleccionar(opcionesVisibles[0]);
+                    } else {
+                        cerrar();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                cerrar();
+            } else if (e.key === 'Tab') {
+                cerrar();
+            }
+        });
+
+        inputBusqueda.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (!contenedor.contains(document.activeElement)) {
+                    cerrar();
+                    const match = opciones.find((op) => norm(op.dataset.valor) === norm(inputBusqueda.value));
+                    if (match) {
+                        seleccionar(match);
+                    } else if (!inputBusqueda.value.trim()) {
+                        inputValor.value = '';
+                        verificarOtra('');
+                    }
+                }
+            }, 180);
+        });
+
+        if (inputValor.value) {
+            verificarOtra(inputValor.value);
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        contenedores.forEach((contenedor) => {
+            if (!contenedor.contains(e.target)) {
+                const desplegable = contenedor.querySelector('.selector-uni-desplegable');
+                if (desplegable) desplegable.style.display = 'none';
+                const inputBusqueda = contenedor.querySelector('.selector-uni-busqueda');
+                if (inputBusqueda) inputBusqueda.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     iniciarTerminos();
     iniciarDatos();
     iniciarArchivos();
     iniciarConsultorios();
     iniciarCalendario();
+    iniciarSelectorUniversidad();
 });

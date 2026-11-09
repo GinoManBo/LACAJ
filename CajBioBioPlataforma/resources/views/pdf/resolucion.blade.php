@@ -36,7 +36,7 @@
     <img class="logo" src="{{ $logo }}" alt="Corporación de Asistencia Judicial — Biobío">
 
     <div class="encabezado">
-      <div class="num">RESOLUCIÓN N.° {{ $certificado->numero_resolucion }}/{{ $certificado->anio }}</div>
+      <div class="num">RESOLUCIÓN N.° {{ $practica->resolucion_numero ? $practica->resolucion_numero . '/' . ($practica->resolucion_anio ?? $certificado->anio) : $certificado->numero_resolucion . '/' . $certificado->anio }}</div>
       <div class="materia">APRUEBA PRÁCTICA PROFESIONAL DE POSTULANTE AL TÍTULO DE {{ mb_strtoupper($titulo) }} DE {{ mb_strtoupper($de) }} {{ $nombreLegal }}.</div>
     </div>
 
@@ -46,7 +46,7 @@
     <p>Lo dispuesto en la Ley N°19.880, que establece las Bases de los Procedimientos Administrativos que rigen los actos de los órganos de la Administración del Estado; en el numeral 5° del artículo 523 del Código Orgánico de Tribunales; en el artículo 2 de la Ley 17.995, que Concede Personalidad Jurídica a los Servicios de Asistencia Jurídica que se indican en las Regiones que se señalan; en la letra i) del artículo 19 de los Estatutos de la Corporación de Asistencia Judicial de la Región del Biobío, aprobados en el Decreto con fuerza de Ley N° 994 del año 1981; en los artículos 24 al 26 del Reglamento de Práctica Profesional de Postulantes al Título de Abogado contenido en el Decreto Supremo N° 265, del Ministerio de Justicia, de 1985; en el Protocolo que regula las condiciones generales para la realización de la Práctica Profesional de los Postulantes al título de Abogado suscrito entre el Ministerio de Justicia y las Corporaciones de Asistencia Judicial el 10 de agosto de 2009; en el Instructivo para la tramitación de expedientes de Juramento de Abogadas y Abogados contenido en el Auto Acordado de la Corte Suprema N°192-2015; el certificado de licenciatura en Ciencias Jurídicas de {{ $de }} <b>{{ $nombreLegal }},</b> emitido por la {{ $postulante->universidad }}.</p>
 
     <div class="rotulo">CONSIDERANDO:</div>
-    <p>Oficio del Director de Acceso a la Justicia de la Institución, de fecha {{ $fechaRes }}, mediante el cual informa que {{ $de }} <b>{{ $nombreLegal }},</b> {{ $femenino ? 'licenciada' : 'licenciado' }} en Ciencias Jurídicas de la {{ $postulante->universidad }}, ha cumplido satisfactoriamente con la práctica profesional dispuesta en el numeral 5° del artículo 523 del Código Orgánico de Tribunales, realizada en la Oficina Jurídica de Atención de la comuna de {{ $comuna }}, entre los días {{ $practica->fecha_inicio->format('d/m/Y') }} al {{ $practica->fecha_termino->format('d/m/Y') }}.</p>
+    <p>Oficio @if($practica->oficio_daj_numero)N.º {{ $practica->oficio_daj_numero }}/{{ $practica->resolucion_anio ?? $certificado->anio }} @endif del Director de Acceso a la Justicia de la Institución, de fecha {{ $practica->oficio_daj_fecha ? $practica->oficio_daj_fecha->locale('es')->translatedFormat('d \d\e F \d\e Y') : $fechaRes }}, mediante el cual informa que {{ $de }} <b>{{ $nombreLegal }},</b> {{ $femenino ? 'licenciada' : 'licenciado' }} en Ciencias Jurídicas de la {{ $postulante->universidad }}, ha cumplido satisfactoriamente con la práctica profesional dispuesta en el numeral 5° del artículo 523 del Código Orgánico de Tribunales, realizada en la Oficina Jurídica de Atención de la comuna de {{ $comuna }}, entre los días {{ $practica->fecha_inicio->format('d/m/Y') }} al {{ $practica->fecha_termino->format('d/m/Y') }}.</p>
   </div>
 
   <div class="pagina salto">

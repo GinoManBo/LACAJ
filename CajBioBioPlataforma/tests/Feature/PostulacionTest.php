@@ -59,7 +59,6 @@ class PostulacionTest extends TestCase
             'especialidad_id' => $espId,
             'cedula_frontal' => $img,
             'cedula_reverso' => $img,
-            'certificado_egreso' => $img,
         ])->assertSessionHasErrors('certificado_egreso');
 
         // Con certificado de egreso (PDF) y sin anio_carrera avanza con éxito a paso 4
@@ -142,7 +141,7 @@ class PostulacionTest extends TestCase
         $this->assertTrue(auth()->check());
         $user = auth()->user();
         $this->assertSame('postulante', $user->rol);
-        $this->assertSame('20000003-k', $user->rut);
+        $this->assertSame('20000003-K', $user->rut);
         $this->assertFalse((bool) $user->debe_cambiar_password);
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('miPasswordSegura123', $user->password));
     }

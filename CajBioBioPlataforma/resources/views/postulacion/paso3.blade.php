@@ -18,7 +18,7 @@
         <fieldset class="bloque">
             <legend>Estudios</legend>
             <div class="rejilla-campos">
-                <div class="ancho-completo"><x-campo name="universidad" label="Universidad" :value="$ev('universidad')" :obligatorio="true" placeholder="Universidad donde cursó sus estudios de Derecho" /></div>
+                <div class="ancho-completo"><x-selector-universidad name="universidad" label="Universidad" :value="$ev('universidad')" :obligatorio="true" placeholder="Escriba para buscar o seleccionar su universidad..." ayuda="Seleccione de la lista oficial o indique su institución si no figura en el catálogo." /></div>
                 <div class="ancho-completo"><x-campo name="especialidad_id" label="Especialidad de interés" :value="$ev('especialidad_id')" :opciones="$especialidades->pluck('nombre', 'id')" :obligatorio="true" /></div>
             </div>
         </fieldset>

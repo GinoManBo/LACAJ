@@ -18,6 +18,12 @@
     </div>
     <div class="tp-meta">
         <x-badge :estado="$estadoMostrado" :texto="$etiquetasEstado[$estadoMostrado] ?? null" />
+        @if ($practica->carta_presentacion_firmada)
+            <x-boton tipo="primario" :href="route('tutor.practicantes.carta_firmada', $practica->id)" target="_blank">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.3rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Ver Carta Firmada (PDF)
+            </x-boton>
+        @endif
         <x-boton tipo="secundario" :href="route('tutor.inicio')">Volver al listado</x-boton>
     </div>
 </header>
@@ -47,6 +53,24 @@
                 <div><dt>Consultorio</dt><dd>{{ $practica->consultorio->nombre ?? '—' }}@if ($practica->consultorio?->direccion)<br><span class="texto-suave">{{ $practica->consultorio->direccion }}</span>@endif</dd></div>
                 <div><dt>Inicio oficial</dt><dd>{{ $fmt($practica->fecha_inicio) }}</dd></div>
                 <div><dt>Término legal</dt><dd>{{ $fmt($practica->fecha_termino) }}</dd></div>
+                @if ($practica->carta_presentacion_firmada)
+                    <div style="grid-column:1/-1; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:0.6rem 0.75rem; margin-top:0.25rem;">
+                        <dt style="color:#166534; font-weight:700;">Carta de Presentación Oficial</dt>
+                        <dd style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-top:0.25rem;">
+                            <span style="font-size:0.85rem; color:#15803d;">
+                                ✓ Carta firmada cargada por Secretaría
+                                @if ($practica->carta_presentacion_subida_at)
+                                    ({{ $practica->carta_presentacion_subida_at->format('d-m-Y H:i') }})
+                                @endif
+                                · Folio Archivos: <strong>N.º {{ $practica->numero_registro_carta }}</strong>
+                            </span>
+                            <a href="{{ route('tutor.practicantes.carta_firmada', $practica->id) }}" target="_blank" class="btn btn-primario" style="font-size:0.8rem; padding:0.35rem 0.75rem; text-decoration:none; display:inline-flex; align-items:center;">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:.3rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                Descargar Carta Firmada (PDF)
+                            </a>
+                        </dd>
+                    </div>
+                @endif
                 @if ($postulante->discapacidad)
                     <div style="grid-column:1/-1"><dt>Discapacidad</dt><dd>{{ $postulante->discapacidad_descripcion ?: 'Declarada, sin detalle.' }}</dd></div>
                 @endif

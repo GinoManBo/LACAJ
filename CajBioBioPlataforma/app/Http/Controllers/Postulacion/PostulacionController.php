@@ -11,11 +11,13 @@ use App\Models\Especialidad;
 use App\Models\Postulacion;
 use App\Models\PostulacionBorrador;
 use App\Models\Postulante;
+use App\Models\Practica;
 use App\Models\Region;
 use App\Models\Usuario;
 use App\Services\Almacenamiento;
 use App\Services\Auditoria;
 use App\Services\Notificaciones;
+use App\Services\Practicas;
 use App\Support\Calendario;
 use App\Support\Rut;
 use Illuminate\Http\Request;
@@ -102,7 +104,11 @@ class PostulacionController extends Controller
                 unset($b['datos']['password'], $b['datos']['password_confirmation']);
                 break;
             case 3:
-                $b['educ'] = $this->validar($request->all(), $this->reglasPaso3(), $this->mensajes());
+                $entradaEduc = $request->all();
+                $b['educ'] = $this->validar($entradaEduc, $this->reglasPaso3(), $this->mensajes());
+                if (($b['educ']['universidad'] ?? '') === 'Otra institución no listada' && ! empty($entradaEduc['universidad_otra'])) {
+                    $b['educ']['universidad'] = trim($entradaEduc['universidad_otra']);
+                }
                 $b['archivos'] = $this->procesarArchivos($request, $b['archivos'] ?? []);
                 break;
             case 4:
@@ -130,6 +136,13 @@ class PostulacionController extends Controller
             ->whereIn('estado', ['pendiente', 'derivada'])->exists();
         if ($yaPostulo) {
             return redirect()->route('postulacion.paso', 2)->withErrors(['rut' => 'Ya existe una postulación en revisión para este RUT.']);
+        }
+
+        $tienePracticaActiva = Practica::whereHas('practicante.postulante', fn ($q) => $q->where('rut', $rut))
+            ->whereIn('estado', ['por_iniciar', 'activa', 'remitida_biobio', 'nivelada_biobio'])
+            ->exists();
+        if ($tienePracticaActiva) {
+            return redirect()->route('postulacion.paso', 2)->withErrors(['rut' => 'Ya cuenta con una práctica en curso o asignada actualmente.']);
         }
 
         $regionId = Consultorio::findOrFail($b['consultorios'][0])->region_id;
@@ -274,6 +287,7 @@ class PostulacionController extends Controller
     {
         return [
             'universidad' => ['required', 'string', 'max:160'],
+            'universidad_otra' => ['nullable', 'string', 'max:160'],
             'especialidad_id' => ['required', Rule::exists('especialidades', 'id')->where('activo', true)],
         ];
     }
@@ -281,7 +295,7 @@ class PostulacionController extends Controller
     private function reglasPaso4(): array
     {
         return [
-            'consultorios' => ['required', 'array', 'min:1'],
+            'consultorios' => ['required', 'array', 'min:1', 'max:3'],
             'consultorios.*' => ['integer', 'distinct', Rule::exists('consultorios', 'id')->where('activo', true)->where('acepta_postulaciones', true)],
             'fecha_inicio' => ['required', 'date', 'after_or_equal:today', fn ($a, $v, $fail) => Calendario::esHabil($v) ?: $fail('La fecha no puede ser fin de semana ni feriado legal.')],
         ];
@@ -304,6 +318,7 @@ class PostulacionController extends Controller
             'after_or_equal' => 'La fecha no puede ser anterior a hoy.',
             'consultorios.required' => 'Seleccione al menos un consultorio.',
             'consultorios.min' => 'Seleccione al menos un consultorio.',
+            'consultorios.max' => 'Puede seleccionar como máximo 3 consultorios por orden de preferencia.',
         ];
     }
 
@@ -418,9 +433,22 @@ class PostulacionController extends Controller
     private function datosPasoConsultorios(array $b): array
     {
         $comuna = isset($b['datos']['comuna_id']) ? Comuna::find($b['datos']['comuna_id']) : null;
+
+        $ocupadosPorConsultorio = Practica::query()
+            ->whereIn('estado', ['por_iniciar', 'activa'])
+            ->where('fecha_termino', '>', today())
+            ->groupBy('consultorio_id')
+            ->selectRaw('consultorio_id, count(*) as total')
+            ->pluck('total', 'consultorio_id');
+
         $consultorios = Consultorio::with('comuna')->where('activo', true)->where('acepta_postulaciones', true)->orderBy('nombre')->get()
-            ->each(function ($c) use ($comuna) {
-                $c->distancia = ($comuna && $comuna->lat && $c->comuna->lat)
+            ->each(function ($c) use ($comuna, $ocupadosPorConsultorio) {
+                $c->ocupados = (int) ($ocupadosPorConsultorio[$c->id] ?? 0);
+                $c->libres = max(0, $c->capacidad - $c->ocupados);
+                $c->porcentaje_ocupacion = $c->capacidad > 0 ? (int) round(($c->ocupados / $c->capacidad) * 100) : 0;
+                $c->disponibilidad = Practicas::nivelDisponibilidad($c->capacidad, $c->libres);
+
+                $c->distancia = ($comuna && $comuna->lat && $c->comuna?->lat)
                     ? hypot($comuna->lat - $c->comuna->lat, $comuna->lng - $c->comuna->lng) : null;
             });
         $ordenados = $consultorios->sortBy(fn ($c) => $c->distancia ?? INF)->values();
@@ -428,7 +456,7 @@ class PostulacionController extends Controller
 
         return [
             'consultorios' => $ordenados, 'masCercanoId' => $cercano,
-            'seleccionados' => $b['consultorios'] ?? [],
+            'seleccionados' => array_slice($b['consultorios'] ?? [], 0, 3),
             'feriados' => config('feriados'), 'hoy' => now()->toDateString(),
         ];
     }
@@ -437,11 +465,27 @@ class PostulacionController extends Controller
     {
         $d = $b['datos'] ?? [];
 
+        $ocupadosPorConsultorio = Practica::query()
+            ->whereIn('estado', ['por_iniciar', 'activa'])
+            ->where('fecha_termino', '>', today())
+            ->groupBy('consultorio_id')
+            ->selectRaw('consultorio_id, count(*) as total')
+            ->pluck('total', 'consultorio_id');
+
+        $consultoriosElegidos = collect($b['consultorios'] ?? [])
+            ->map(fn ($id) => Consultorio::with('comuna')->find($id))
+            ->filter()
+            ->each(function ($c) use ($ocupadosPorConsultorio) {
+                $c->ocupados = (int) ($ocupadosPorConsultorio[$c->id] ?? 0);
+                $c->libres = max(0, $c->capacidad - $c->ocupados);
+                $c->disponibilidad = Practicas::nivelDisponibilidad($c->capacidad, $c->libres);
+            });
+
         return [
             'datos' => $d, 'educ' => $b['educ'] ?? [],
             'region' => Region::find($d['region_id'] ?? 0), 'comuna' => Comuna::find($d['comuna_id'] ?? 0),
             'especialidad' => Especialidad::find($b['educ']['especialidad_id'] ?? 0),
-            'consultoriosElegidos' => collect($b['consultorios'] ?? [])->map(fn ($id) => Consultorio::find($id))->filter(),
+            'consultoriosElegidos' => $consultoriosElegidos,
             'fechaInicio' => $b['fecha_inicio'] ?? null,
             'archivos' => ArchivoStaging::whereIn('id', array_values($b['archivos'] ?? []))->get()->keyBy('tipo'),
         ];

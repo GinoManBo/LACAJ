@@ -31,8 +31,8 @@ class CartaPresentacionService
         $fecha = now()->locale('es')->translatedFormat('d \d\e F \d\e Y');
         $fechaInicio = $p->fecha_inicio ? $p->fecha_inicio->locale('es')->translatedFormat('d \d\e F \d\e Y') : $fecha;
 
-        // Número correlativo de registro institucional
-        $numeroRegistro = number_format(17400 + $p->id, 0, '', '.');
+        // Número correlativo de registro institucional (folio manual o fallback institucional)
+        $numeroRegistro = $p->numero_registro_carta;
 
         $abogadoJefeNombre = $abogado
             ? $abogado->nombre.' '.$abogado->apellido

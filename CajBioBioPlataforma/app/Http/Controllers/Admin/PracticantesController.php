@@ -7,6 +7,7 @@ use App\Models\Abogado;
 use App\Models\Consultorio;
 use App\Models\Practica;
 use App\Models\Region;
+use App\Services\Auditoria;
 use App\Services\Practicas;
 use App\Services\PracticasAdmin;
 use App\Support\Notas;
@@ -150,6 +151,17 @@ class PracticantesController extends Controller
         }
 
         $w->close();
+
+        Auditoria::registrar('practica.exportar_nacional', 'practica', null, [
+            'total_registros' => $practicas->count(),
+            'filtros' => array_filter([
+                'q' => $q,
+                'region_id' => $regionId,
+                'consultorio_id' => $consultorioId,
+                'estado' => $estado,
+            ]),
+            'motivo' => 'Exportación nacional de nómina de postulantes y prácticas (Admin, Ley N.° 19.628)',
+        ], $request->user()->id);
 
         return response()->download($ruta, 'practicas_nacional_caj_'.now()->format('Ymd_His').'.xlsx')->deleteFileAfterSend();
     }

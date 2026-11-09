@@ -28,6 +28,7 @@ Route::middleware('rol:secretaria,juridica_central')->prefix('secretaria')->grou
     Route::get('/practicas/{id}', [PracticasController::class, 'ver'])->whereNumber('id')->name('secretaria.practicas.ver');
     Route::get('/practicas/{id}/estadistica', [PracticasController::class, 'estadistica'])->whereNumber('id')->name('secretaria.practicas.estadistica');
     Route::get('/practicas/{id}/carta-presentacion.pdf', [PracticasController::class, 'descargarCartaPresentacion'])->whereNumber('id')->name('secretaria.practicas.carta_presentacion');
+    Route::post('/practicas/{id}/folio-carta', [PracticasController::class, 'guardarFolioCarta'])->whereNumber('id')->name('secretaria.practicas.guardar_folio_carta');
     Route::post('/practicas/{id}/carta-presentacion', [PracticasController::class, 'subirCartaPresentacion'])->whereNumber('id')->name('secretaria.practicas.subir_carta_firmada');
     Route::get('/practicas/{id}/carta-firmada.pdf', [PracticasController::class, 'verCartaPresentacionFirmada'])->whereNumber('id')->name('secretaria.practicas.ver_carta_firmada');
     Route::post('/practicas/{id}/segunda-instancia', [PracticasController::class, 'calificarSegundaInstancia'])->whereNumber('id')->name('secretaria.practicas.segunda_instancia');
@@ -39,6 +40,7 @@ Route::middleware('rol:secretaria,juridica_central')->prefix('secretaria')->grou
     Route::get('/historial/{id}/certificado.pdf', [HistorialController::class, 'descargarCertificado'])->whereNumber('id')->name('secretaria.historial.certificado');
     Route::get('/historial/{id}/resolucion.pdf', [HistorialController::class, 'descargarResolucion'])->whereNumber('id')->name('secretaria.historial.resolucion');
     Route::get('/historial/{id}/expediente.zip', [HistorialController::class, 'descargarExpediente'])->whereNumber('id')->name('secretaria.historial.expediente');
+    Route::post('/historial/{id}/actualizar-folios', [HistorialController::class, 'guardarFolios'])->whereNumber('id')->name('secretaria.historial.guardar_folios');
     Route::post('/historial/{id}/remitir-biobio', [HistorialController::class, 'remitirBiobio'])->whereNumber('id')->name('secretaria.historial.remitir_biobio');
 
     Route::get('/consultorios', [ConsultoriosController::class, 'index'])->name('secretaria.consultorios');
@@ -61,6 +63,7 @@ Route::middleware('rol:secretaria,juridica_central')->prefix('secretaria')->grou
         Route::post('/{id}/nivelar', [JuridicaBiobioController::class, 'nivelar'])->whereNumber('id')->name('nivelar');
         Route::post('/{id}/segunda-instancia', [JuridicaBiobioController::class, 'calificarSegundaInstancia'])->whereNumber('id')->name('segunda_instancia');
         Route::post('/{id}/rechazar-sancion', [JuridicaBiobioController::class, 'rechazarSancion'])->whereNumber('id')->name('rechazar_sancion');
+        Route::post('/{id}/actualizar-folios', [JuridicaBiobioController::class, 'guardarFolios'])->whereNumber('id')->name('guardar_folios');
         Route::post('/{id}/despachar', [JuridicaBiobioController::class, 'despachar'])->whereNumber('id')->name('despachar');
     });
 });

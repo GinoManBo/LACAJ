@@ -155,9 +155,11 @@ class DirectorRegionalController extends Controller
         $criterios = [];
         foreach (Notas::CRITERIOS as $campo => $etiqueta) {
             $criterios[] = [
+                'campo' => $campo,
                 'etiqueta' => $etiqueta,
                 'nota' => (float) $evaluacion->{$campo},
                 'concepto' => Notas::concepto((float) $evaluacion->{$campo}),
+                'clave' => Notas::claveConcepto((float) $evaluacion->{$campo}),
             ];
         }
 
@@ -170,6 +172,16 @@ class DirectorRegionalController extends Controller
         $claveActual = Notas::claveConcepto($p->nota_practica);
         $conceptoActual = Notas::concepto($p->nota_practica);
         $puedeModificar = ! in_array($p->estado, ['remitida_biobio', 'cerrada_historial'], true);
+
+        $historialAuditoria = Auditoria::with('usuario')
+            ->where('entidad', 'practica')
+            ->where('entidad_id', $p->id)
+            ->where(function ($q) {
+                $q->where('accion', 'like', '%evaluacion%')
+                  ->orWhere('accion', 'like', '%modificar%');
+            })
+            ->orderByDesc('id')
+            ->get();
 
         return view('director.ver', [
             'practica' => $p,
@@ -186,6 +198,7 @@ class DirectorRegionalController extends Controller
             'puedeValidar' => $p->validada_director_at === null,
             'puedeModificar' => $puedeModificar,
             'esUcoe' => $request->user()->rol === 'jefe_ucoe' || $p->consultorio->region?->codigo === 'BI',
+            'historialAuditoria' => $historialAuditoria,
         ]);
     }
 
@@ -201,7 +214,7 @@ class DirectorRegionalController extends Controller
         $regionId = $this->regionId($request);
 
         $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', $regionId))
-            ->with('practicante.postulante', 'consultorio.region', 'evaluacion')
+            ->with('practicante.postulante', 'consultorio.region', 'evaluacion', 'calificacionPrimeraInstancia')
             ->findOrFail($id);
 
         abort_unless($p->evaluacion, 422, 'La práctica aún no tiene evaluación.');
@@ -210,27 +223,88 @@ class DirectorRegionalController extends Controller
             return back()->withErrors(['validar' => 'El expediente ya fue remitido a Jurídica Central o cerrado, por lo que su calificación no puede ser modificada a nivel regional.']);
         }
 
-        $datos = $request->validate([
+        $reglas = [
             'concepto' => ['nullable', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))],
             'observaciones_director' => ['nullable', 'string', 'max:3000'],
-        ], [
+            'criterios' => ['nullable', 'array'],
+        ];
+        foreach (array_keys(Notas::CRITERIOS) as $campo) {
+            $reglas["criterios.{$campo}"] = ['nullable', 'string', 'in:'.implode(',', array_keys(Notas::OPCIONES))];
+        }
+
+        $datos = $request->validate($reglas, [
             'concepto.in' => 'Seleccione una calificación válida (Sobresaliente, Buena, Regular, Mala).',
+            'criterios.*.in' => 'Seleccione una calificación válida para cada criterio evaluado.',
         ]);
 
-        $notaAnterior = $p->nota_practica;
+        $evaluacion = $p->evaluacion;
+        $criteriosAnteriores = [];
+        $cambiosCriterios = [];
+        $nuevosPuntajes = [];
+
+        foreach (Notas::CRITERIOS as $campo => $etiqueta) {
+            $notaAnt = (float) ($evaluacion->{$campo} ?? 5.0);
+            $conceptoAnt = Notas::concepto($notaAnt);
+            $criteriosAnteriores[$campo] = [
+                'etiqueta' => $etiqueta,
+                'nota' => $notaAnt,
+                'concepto' => $conceptoAnt,
+            ];
+
+            if (isset($datos['criterios'][$campo])) {
+                $claveCriterio = $datos['criterios'][$campo];
+                $opc = Notas::OPCIONES[$claveCriterio] ?? null;
+                $notaNuevaCriterio = $opc ? (float) $opc['valor'] : $notaAnt;
+                $conceptoNuevoCriterio = $opc ? $opc['nombre'] : $conceptoAnt;
+            } else {
+                $notaNuevaCriterio = $notaAnt;
+                $conceptoNuevoCriterio = $conceptoAnt;
+            }
+
+            $nuevosPuntajes[$campo] = $notaNuevaCriterio;
+
+            if (abs($notaNuevaCriterio - $notaAnt) > 0.01) {
+                $cambiosCriterios[$campo] = [
+                    'criterio' => $etiqueta,
+                    'nota_anterior' => $notaAnt,
+                    'concepto_anterior' => $conceptoAnt,
+                    'nota_nueva' => $notaNuevaCriterio,
+                    'concepto_nuevo' => $conceptoNuevoCriterio,
+                ];
+            }
+        }
+
+        $criteriosFueronModificados = count($cambiosCriterios) > 0;
+        $promedioCriterios = Notas::promedio($nuevosPuntajes);
+
+        $notaAnterior = $p->nota_practica ?? $evaluacion->promedio;
         $conceptoAnterior = Notas::concepto($notaAnterior);
         $claveAnterior = Notas::claveConcepto($notaAnterior);
 
-        $claveNueva = $datos['concepto'] ?? $claveAnterior;
-        $opcionNueva = Notas::OPCIONES[$claveNueva] ?? Notas::OPCIONES['BUENA'];
-        $notaNueva = $opcionNueva['valor'];
-        $conceptoNuevo = $opcionNueva['nombre'];
-        $fueModificada = $claveNueva !== $claveAnterior;
+        if (! empty($datos['concepto'])) {
+            $claveNueva = $datos['concepto'];
+            $opcionNueva = Notas::OPCIONES[$claveNueva] ?? Notas::OPCIONES['BUENA'];
+            $notaNueva = (float) $opcionNueva['valor'];
+            $conceptoNuevo = $opcionNueva['nombre'];
+        } elseif ($criteriosFueronModificados) {
+            $claveNueva = Notas::claveConcepto($promedioCriterios);
+            $opcionNueva = Notas::OPCIONES[$claveNueva] ?? Notas::OPCIONES['BUENA'];
+            $notaNueva = (float) $opcionNueva['valor'];
+            $conceptoNuevo = $opcionNueva['nombre'];
+        } else {
+            $claveNueva = $claveAnterior;
+            $opcionNueva = Notas::OPCIONES[$claveNueva] ?? Notas::OPCIONES['BUENA'];
+            $notaNueva = (float) ($p->nota_practica ?? $opcionNueva['valor']);
+            $conceptoNuevo = $conceptoAnterior;
+        }
+
+        $finalFueModificada = ($claveNueva !== $claveAnterior) || (abs($notaNueva - (float) $notaAnterior) > 0.01);
+        $fueModificada = $criteriosFueronModificados || $finalFueModificada;
 
         $obs = trim((string) ($datos['observaciones_director'] ?? ''));
 
         if ($fueModificada && empty($obs)) {
-            return back()->withErrors(['observaciones_director' => 'Debe ingresar la justificación u observaciones de la Dirección al modificar la calificación propuesta.'])->withInput();
+            return back()->withErrors(['observaciones_director' => 'Debe ingresar la justificación u observaciones de la Dirección / UCOE al modificar los criterios o la calificación de la propuesta original.'])->withInput();
         }
 
         $actualizacion = [
@@ -247,18 +321,37 @@ class DirectorRegionalController extends Controller
 
         $notaActual = $p->nota_practica ?? $notaNueva;
         $esAprobatoria = Notas::esAprobatoria($notaActual);
-        if ($p->evaluacion) {
-            $p->evaluacion->update([
-                'promedio' => $notaActual,
-                'aprobado' => $esAprobatoria,
+
+        // Actualizar cada sección de nota en la evaluación institucional
+        $p->evaluacion->update($nuevosPuntajes + [
+            'promedio' => $notaActual,
+            'aprobado' => $esAprobatoria,
+        ]);
+
+        if ($p->calificacionPrimeraInstancia) {
+            $p->calificacionPrimeraInstancia->update([
+                'nota' => $notaActual,
+                'observaciones' => $obs ?: $p->calificacionPrimeraInstancia->observaciones,
             ]);
         }
 
-        $evento = $fueModificada ? 'director.modificar_evaluacion' : 'director.validar_evaluacion';
+        $esUcoe = $request->user()->rol === 'jefe_ucoe' || $p->consultorio->region?->codigo === 'BI';
+        $evento = $fueModificada
+            ? ($esUcoe ? 'ucoe.modificar_evaluacion' : 'director.modificar_evaluacion')
+            : ($esUcoe ? 'ucoe.validar_evaluacion' : 'director.validar_evaluacion');
+
         Auditoria::registrar($evento, 'practica', $p->id, [
-            'director_id' => $request->user()->id,
-            'director_rol' => $request->user()->rol,
+            'usuario_id' => $request->user()->id,
+            'usuario_nombre' => $request->user()->nombre_completo,
+            'usuario_rol' => $request->user()->rol,
+            'es_ucoe' => $esUcoe,
+            'practica_id' => $p->id,
+            'postulante_rut' => $p->practicante?->postulante?->rut,
+            'postulante_nombre' => $p->practicante?->postulante?->nombre_completo,
             'fue_modificada' => $fueModificada,
+            'criterios_modificados' => $cambiosCriterios,
+            'criterios_anteriores' => collect($criteriosAnteriores)->mapWithKeys(fn ($v, $k) => [$k => $v['concepto']])->all(),
+            'criterios_nuevos' => collect($nuevosPuntajes)->mapWithKeys(fn ($v, $k) => [$k => Notas::concepto($v)])->all(),
             'nota_anterior' => $notaAnterior,
             'concepto_anterior' => $conceptoAnterior,
             'nota_fijada' => $notaNueva,
@@ -266,19 +359,21 @@ class DirectorRegionalController extends Controller
             'observaciones' => $obs,
         ], $request->user()->id);
 
+        $entidadEmisora = $esUcoe ? 'la Jefatura de UCOE Biobío' : 'la Dirección Regional';
+
         // Notificar a las secretarias de la región
         Usuario::where('rol', 'secretaria')
             ->where('region_id', $regionId)
             ->where('activo', true)
-            ->each(function ($sec) use ($p, $conceptoNuevo, $fueModificada) {
+            ->each(function ($sec) use ($p, $conceptoNuevo, $fueModificada, $entidadEmisora) {
                 $mensaje = $fueModificada
-                    ? "La calificación de {$p->practicante->postulante->nombre_completo} fue revisada y modificada a «{$conceptoNuevo}» por la Dirección Regional. Expediente habilitado para remisión a Concepción."
-                    : "La propuesta evaluativa («{$conceptoNuevo}») de {$p->practicante->postulante->nombre_completo} ha sido visada formalmente. Ya puede remitir el legajo a Jurídica Central Biobío.";
+                    ? "La evaluación de {$p->practicante->postulante->nombre_completo} fue revisada y modificada (calificación «{$conceptoNuevo}») por {$entidadEmisora}. Expediente habilitado para remisión a Concepción."
+                    : "La propuesta evaluativa («{$conceptoNuevo}») de {$p->practicante->postulante->nombre_completo} ha sido visada formalmente por {$entidadEmisora}. Ya puede remitir el legajo a Jurídica Central Biobío.";
 
                 Notificaciones::crear(
                     $sec->id,
                     'aviso',
-                    $fueModificada ? 'Calificación modificada por Dirección Regional' : 'Expediente visado por Dirección Regional',
+                    $fueModificada ? 'Evaluación modificada por '.$entidadEmisora : 'Expediente visado por '.$entidadEmisora,
                     $mensaje,
                     'practica',
                     $p->id
@@ -286,8 +381,8 @@ class DirectorRegionalController extends Controller
             });
 
         $msgExito = $fueModificada
-            ? "Calificación revisada y modificada formalmente a «{$conceptoNuevo}» por la Dirección. La Secretaría Regional ya puede remitir el expediente a Concepción."
-            : "Propuesta de evaluación («{$conceptoNuevo}») visada formalmente por la Dirección. La Secretaría Regional ya puede remitir el expediente a Concepción.";
+            ? "Evaluación y criterios revisados y modificados formalmente a «{$conceptoNuevo}». El cambio ha sido registrado en el log de auditoría y la Secretaría Regional ya puede remitir el expediente a Concepción."
+            : "Propuesta de evaluación («{$conceptoNuevo}») visada formalmente. La Secretaría Regional ya puede remitir el expediente a Concepción.";
 
         return back()->with('ok', $msgExito);
     }
@@ -466,6 +561,18 @@ class DirectorRegionalController extends Controller
         }
 
         $w->close();
+
+        Auditoria::registrar('seguimiento.exportar_regional', 'practica', null, [
+            'total_registros' => $practicas->count(),
+            'region_id' => $regionId,
+            'region_codigo' => $region->codigo,
+            'filtros' => array_filter([
+                'q' => $q,
+                'consultorio_id' => $consultorioId,
+                'estado' => $estado,
+            ]),
+            'motivo' => 'Exportación de seguimiento y métricas directivas regionales (Ley N.° 19.628)',
+        ], $request->user()->id);
 
         return response()->download($ruta, 'seguimiento-practicas-'.$region->codigo.'-'.now()->format('Y-m-d').'.xlsx')->deleteFileAfterSend();
     }

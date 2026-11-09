@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Secretaria;
 
 use App\Http\Controllers\Controller;
+use App\Models\Certificado;
 use App\Models\Practica;
 use App\Models\Usuario;
 use App\Services\Auditoria;
@@ -156,6 +157,12 @@ class HistorialController extends Controller
         $pdfBin = CertificadosPractica::pdfCertificado($p, $request->user());
         $rut = $p->practicante?->postulante?->rut ?? 'postulante';
 
+        Auditoria::registrar('practica.descarga_certificado', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'origen' => 'historial_secretaria',
+            'rol' => $request->user()->rol,
+        ], $request->user()->id);
+
         return response($pdfBin, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="Certificado_Corte_Suprema_'.$rut.'.pdf"',
@@ -178,6 +185,12 @@ class HistorialController extends Controller
 
         $pdfBin = CertificadosPractica::pdfResolucion($p, $request->user());
         $rut = $p->practicante?->postulante?->rut ?? 'postulante';
+
+        Auditoria::registrar('practica.descarga_resolucion', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'origen' => 'historial_secretaria',
+            'rol' => $request->user()->rol,
+        ], $request->user()->id);
 
         return response($pdfBin, 200, [
             'Content-Type' => 'application/pdf',
@@ -202,6 +215,56 @@ class HistorialController extends Controller
         $zipPath = CertificadosPractica::zipExpediente($p, $request->user());
         $rut = $p->practicante?->postulante?->rut ?? 'postulante';
 
+        Auditoria::registrar('expediente.descargar_zip', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'consultorio_id' => $p->consultorio_id,
+            'region_id' => $p->consultorio?->region_id,
+            'origen' => 'historial_secretaria',
+        ], $request->user()->id);
+
         return response()->download($zipPath, 'Expediente_Practica_'.$rut.'.zip')->deleteFileAfterSend();
+    }
+
+    /**
+     * Guarda o actualiza folios institucionales desde Historial.
+     */
+    public function guardarFolios(Request $request, int $id)
+    {
+        $p = Practica::whereHas('consultorio', fn ($c) => $c->where('region_id', Scope::regionId($request->user())))
+            ->whereIn('estado', self::ESTADOS_HISTORIAL)
+            ->findOrFail($id);
+
+        $validados = $request->validate([
+            'folio_carta_presentacion' => ['nullable', 'string', 'max:50'],
+            'resolucion_numero' => ['nullable', 'string', 'max:50'],
+            'resolucion_anio' => ['nullable', 'integer', 'min:1990', 'max:2100'],
+            'oficio_daj_numero' => ['nullable', 'string', 'max:50'],
+            'oficio_daj_fecha' => ['nullable', 'date'],
+            'folio_caj' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $p->update([
+            'folio_carta_presentacion' => $request->filled('folio_carta_presentacion') ? trim($validados['folio_carta_presentacion']) : null,
+            'resolucion_numero' => $request->filled('resolucion_numero') ? trim($validados['resolucion_numero']) : null,
+            'resolucion_anio' => $validados['resolucion_anio'] ?? null,
+            'oficio_daj_numero' => $request->filled('oficio_daj_numero') ? trim($validados['oficio_daj_numero']) : null,
+            'oficio_daj_fecha' => $validados['oficio_daj_fecha'] ?? null,
+            'folio_caj' => $request->filled('folio_caj') ? trim($validados['folio_caj']) : null,
+        ]);
+
+        if ($request->filled('resolucion_numero')) {
+            $cert = Certificado::where('practica_id', $p->id)->where('tipo', CertificadosPractica::RESOLUCION)->first();
+            if ($cert) {
+                $numEntero = (int) preg_replace('/\D/', '', (string) $validados['resolucion_numero']);
+                $cert->update([
+                    'numero_resolucion' => $numEntero,
+                    'anio' => (int) ($validados['resolucion_anio'] ?? $cert->anio),
+                ]);
+            }
+        }
+
+        Auditoria::registrar('practica.folios_historial', 'practica', $p->id, $validados, $request->user()->id);
+
+        return back()->with('ok', 'Folios oficiales guardados exitosamente.');
     }
 }

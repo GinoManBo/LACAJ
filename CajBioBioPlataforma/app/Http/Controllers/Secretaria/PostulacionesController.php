@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Secretaria;
 use App\Http\Controllers\Controller;
 use App\Models\Consultorio;
 use App\Models\Postulacion;
+use App\Models\Practica;
 use App\Models\Region;
+use App\Services\Auditoria;
 use App\Services\ImportadorPostulaciones;
 use App\Services\Postulaciones;
 use App\Services\Practicas;
@@ -33,7 +35,27 @@ class PostulacionesController extends Controller
                 ->orWhere('rut', 'like', "%$q%")->orWhere('universidad', 'like', "%$q%")))
             ->orderBy('fecha_postulacion')->orderBy('id')->get();
 
-        return view('secretaria.postulaciones.index', ['postulaciones' => $postulaciones, 'q' => $q]);
+        $ruts = $postulaciones->pluck('postulante.rut')->filter()->unique()->values();
+        $cancelacionesPorRut = $ruts->isNotEmpty()
+            ? Practica::where('estado', 'cancelada')
+                ->where(function ($query) use ($ruts) {
+                    $query->whereHas('practicante.postulante', fn ($q) => $q->whereIn('rut', $ruts))
+                        ->orWhereHas('postulacion.postulante', fn ($q) => $q->whereIn('rut', $ruts));
+                })
+                ->with(['consultorio', 'canceladaPor'])
+                ->orderByDesc('cancelacion_fecha')
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy(function ($pr) {
+                    return $pr->practicante?->postulante?->rut ?? $pr->postulacion?->postulante?->rut;
+                })
+            : collect();
+
+        return view('secretaria.postulaciones.index', [
+            'postulaciones' => $postulaciones,
+            'cancelacionesPorRut' => $cancelacionesPorRut,
+            'q' => $q,
+        ]);
     }
 
     public function importar(Request $request)
@@ -77,10 +99,12 @@ class PostulacionesController extends Controller
             ->sortBy(fn ($c) => [$c->postulo_aqui ? 0 : 1, $c->otra_region ? 1 : 0, $c->nombre])->values();
 
         $docs = $p->documentos;
+        $cancelacionesPrevias = $p->postulante?->practicasPreviasCanceladas() ?? collect();
 
         return view('secretaria.postulaciones.ver', [
             'postulacion' => $p,
             'postulante' => $p->postulante,
+            'cancelacionesPrevias' => $cancelacionesPrevias,
             'documentosCedula' => $docs->whereIn('tipo', ['cedula_frontal', 'cedula_reverso'])->values(),
             'documentosUniversitarios' => $docs->whereIn('tipo', self::UNIVERSITARIOS)->values(),
             'faltaCedula' => $docs->whereIn('tipo', ['cedula_frontal', 'cedula_reverso'])->count() < 2,
@@ -140,19 +164,38 @@ class PostulacionesController extends Controller
 
     public function notaCrear(Request $request, int $id)
     {
-        $p = $this->postulacion($request, $id);
+        $p = $this->postulacion($request, $id)->load('postulante');
         $datos = $request->validate(['texto' => ['required', 'string', 'max:2000']], ['texto.required' => 'Escriba el comentario.']);
-        $p->notas()->create(['autor_usuario_id' => $request->user()->id, 'texto' => $datos['texto']]);
+        $nota = $p->notas()->create(['autor_usuario_id' => $request->user()->id, 'texto' => $datos['texto']]);
+
+        Auditoria::registrar('postulacion.nota_creada', 'postulacion', $p->id, [
+            'nota_id' => $nota->id,
+            'texto' => $datos['texto'],
+            'rut_postulante' => $p->postulante?->rut,
+        ], $request->user()->id);
 
         return back()->with('ok', 'Comentario agregado.');
     }
 
     public function notaEliminar(Request $request, int $id, int $nota)
     {
-        $p = $this->postulacion($request, $id);
+        $p = $this->postulacion($request, $id)->load('postulante');
         $n = $p->notas()->findOrFail($nota);
         abort_unless($n->autor_usuario_id === $request->user()->id, 403, 'Solo puede eliminar sus propios comentarios.');
+
+        $textoEliminado = $n->texto;
+        $notaId = $n->id;
+        $creadaEl = $n->created_at?->toIso8601String();
+
         $n->delete();
+
+        Auditoria::registrar('postulacion.nota_eliminada', 'postulacion', $p->id, [
+            'nota_id' => $notaId,
+            'texto_eliminado' => $textoEliminado,
+            'rut_postulante' => $p->postulante?->rut,
+            'creada_el' => $creadaEl,
+            'motivo' => 'Eliminación de anotación administrativa interna (resguardo de trazabilidad)',
+        ], $request->user()->id);
 
         return back()->with('ok', 'Comentario eliminado.');
     }

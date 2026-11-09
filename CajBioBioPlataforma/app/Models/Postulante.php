@@ -16,4 +16,27 @@ class Postulante extends Model
     public function postulaciones() { return $this->hasMany(Postulacion::class); }
     public function practicante() { return $this->hasOne(Practicante::class); }
     public function getNombreCompletoAttribute(): string { return "{$this->nombre} {$this->apellido}"; }
+
+    public function practicasPreviasCanceladas()
+    {
+        return Practica::where('estado', 'cancelada')
+            ->where(function ($q) {
+                $q->whereHas('practicante.postulante', fn ($sub) => $sub->where('rut', $this->rut))
+                    ->orWhereHas('postulacion.postulante', fn ($sub) => $sub->where('rut', $this->rut));
+            })
+            ->with(['consultorio.region', 'abogado.usuario', 'canceladaPor'])
+            ->orderByDesc('cancelacion_fecha')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function tieneCancelacionPrevia(): bool
+    {
+        return Practica::where('estado', 'cancelada')
+            ->where(function ($q) {
+                $q->whereHas('practicante.postulante', fn ($sub) => $sub->where('rut', $this->rut))
+                    ->orWhereHas('postulacion.postulante', fn ($sub) => $sub->where('rut', $this->rut));
+            })
+            ->exists();
+    }
 }

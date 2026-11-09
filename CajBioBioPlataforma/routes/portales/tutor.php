@@ -13,7 +13,9 @@ Route::prefix('notificaciones')->name('notificaciones.')->group(function () {
 Route::prefix('tutor')->name('tutor.')->middleware('rol:abogado')->group(function () {
     Route::get('/', [TutorController::class, 'inicio'])->name('inicio');
     Route::get('/practicantes/{practica}', [TutorController::class, 'ver'])->whereNumber('practica')->name('practicantes.ver');
+    Route::get('/practicantes/{practica}/carta-firmada.pdf', [TutorController::class, 'verCartaFirmada'])->whereNumber('practica')->name('practicantes.carta_firmada');
     Route::get('/postulantes/{practica}', [TutorController::class, 'ver'])->whereNumber('practica');
+    Route::get('/postulantes/{practica}/carta-firmada.pdf', [TutorController::class, 'verCartaFirmada'])->whereNumber('practica');
     Route::post('/practicantes/{practica}/evaluacion', [TutorController::class, 'evaluar'])->whereNumber('practica')->name('evaluacion.guardar');
     Route::post('/postulantes/{practica}/evaluacion', [TutorController::class, 'evaluar'])->whereNumber('practica');
     Route::post('/practicantes/{practica}/evaluacion-segunda-instancia', [TutorController::class, 'evaluarSegundaInstancia'])->whereNumber('practica')->name('evaluacion.segunda_instancia');

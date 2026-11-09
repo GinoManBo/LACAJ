@@ -84,7 +84,16 @@
             <x-slot:acciones><a class="btn btn-fantasma btn-sm" href="{{ route('postulacion.paso', 4) }}">Editar<span class="sr-only"> consultorios y fecha</span></a></x-slot:acciones>
             <ol class="resumen-cons">
                 @foreach ($consultoriosElegidos as $c)
-                    <li><span class="resumen-num" aria-hidden="true">{{ $loop->iteration }}</span><span><strong>{{ $c->nombre }}</strong><span class="texto-suave"> {{ $c->comuna?->nombre }}</span></span></li>
+                    <li>
+                        <span class="resumen-num" aria-hidden="true">{{ $loop->iteration }}</span>
+                        <div style="flex:1;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;">
+                            <span>
+                                <strong>{{ $c->nombre }}</strong>
+                                <span class="texto-suave"> {{ $c->comuna?->nombre }} · {{ $c->ocupados }} de {{ $c->capacidad }} cupos ocupados ({{ $c->libres }} {{ $c->libres === 1 ? 'libre' : 'libres' }})</span>
+                            </span>
+                            <x-badge :estado="$c->disponibilidad" />
+                        </div>
+                    </li>
                 @endforeach
             </ol>
             <p class="resumen-fecha"><span class="texto-suave">Fecha de inicio</span> <strong>{{ $fmtFecha($fechaInicio) }}</strong></p>

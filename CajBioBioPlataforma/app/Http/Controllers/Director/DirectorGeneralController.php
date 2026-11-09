@@ -151,6 +151,12 @@ class DirectorGeneralController extends Controller
         $pdfBin = CertificadosPractica::pdfCertificado($p, $request->user());
         $rut = $p->practicante->postulante->rut;
 
+        Auditoria::registrar('practica.descarga_certificado', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'origen' => 'director_general',
+            'rol' => $request->user()->rol,
+        ], $request->user()->id);
+
         return response($pdfBin, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="Certificado_Corte_Suprema_'.$rut.'.pdf"',
@@ -169,10 +175,59 @@ class DirectorGeneralController extends Controller
         $pdfBin = CertificadosPractica::pdfResolucion($p, $request->user());
         $rut = $p->practicante->postulante->rut;
 
+        Auditoria::registrar('practica.descarga_resolucion', 'practica', $p->id, [
+            'rut_postulante' => $rut,
+            'origen' => 'director_general',
+            'rol' => $request->user()->rol,
+        ], $request->user()->id);
+
         return response($pdfBin, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="Resolucion_Aprobacion_'.$rut.'.pdf"',
         ]);
+    }
+
+    /**
+     * Guarda o actualiza los folios oficiales de la resolución y correlativos.
+     */
+    public function guardarFolios(Request $request, int $id)
+    {
+        $this->autorizar($request);
+
+        $p = Practica::findOrFail($id);
+
+        $validados = $request->validate([
+            'resolucion_numero' => ['nullable', 'string', 'max:50'],
+            'resolucion_anio' => ['nullable', 'integer', 'min:1990', 'max:2100'],
+            'oficio_daj_numero' => ['nullable', 'string', 'max:50'],
+            'oficio_daj_fecha' => ['nullable', 'date'],
+            'folio_caj' => ['nullable', 'string', 'max:100'],
+            'folio_carta_presentacion' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $p->update([
+            'resolucion_numero' => $request->filled('resolucion_numero') ? trim($validados['resolucion_numero']) : null,
+            'resolucion_anio' => $validados['resolucion_anio'] ?? null,
+            'oficio_daj_numero' => $request->filled('oficio_daj_numero') ? trim($validados['oficio_daj_numero']) : null,
+            'oficio_daj_fecha' => $validados['oficio_daj_fecha'] ?? null,
+            'folio_caj' => $request->filled('folio_caj') ? trim($validados['folio_caj']) : null,
+            'folio_carta_presentacion' => $request->filled('folio_carta_presentacion') ? trim($validados['folio_carta_presentacion']) : null,
+        ]);
+
+        if ($request->filled('resolucion_numero')) {
+            $cert = Certificado::where('practica_id', $p->id)->where('tipo', CertificadosPractica::RESOLUCION)->first();
+            if ($cert) {
+                $numEntero = (int) preg_replace('/\D/', '', (string) $validados['resolucion_numero']);
+                $cert->update([
+                    'numero_resolucion' => $numEntero,
+                    'anio' => (int) ($validados['resolucion_anio'] ?? $cert->anio),
+                ]);
+            }
+        }
+
+        Auditoria::registrar('practica.folios_director_general', 'practica', $p->id, $validados, $request->user()->id);
+
+        return back()->with('ok', 'Folios oficiales de resolución guardados exitosamente.');
     }
 
     /**
@@ -205,6 +260,13 @@ class DirectorGeneralController extends Controller
         }
 
         $zip->close();
+
+        Auditoria::registrar('firmagob.descarga_lote', 'practica', null, [
+            'total_practicas' => $practicas->count(),
+            'practicas_ids' => $practicas->pluck('id')->all(),
+            'ruts' => $practicas->map(fn ($p) => $p->practicante?->postulante?->rut)->filter()->values()->all(),
+            'motivo' => 'Descarga de lote masivo de certificados para firma offline FirmaGob',
+        ], $request->user()->id);
 
         return response()->download($zipFile, 'Certificados_FirmaGob_Lote_'.now()->format('Ymd_His').'.zip')->deleteFileAfterSend();
     }
@@ -420,6 +482,17 @@ class DirectorGeneralController extends Controller
         }
 
         $w->close();
+
+        Auditoria::registrar('seguimiento.exportar_nacional', 'practica', null, [
+            'total_registros' => $practicas->count(),
+            'filtros' => array_filter([
+                'q' => $q,
+                'region_id' => $regionId,
+                'consultorio_id' => $consultorioId,
+                'estado' => $estado,
+            ]),
+            'motivo' => 'Exportación nacional corporativa de seguimiento y métricas directivas (Ley N.° 19.628)',
+        ], $request->user()->id);
 
         return response()->download($ruta, 'seguimiento-nacional-caj-'.now()->format('Y-m-d').'.xlsx')->deleteFileAfterSend();
     }

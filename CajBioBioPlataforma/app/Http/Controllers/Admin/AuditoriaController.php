@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Auditoria;
 use App\Models\Usuario;
+use App\Services\Auditoria as AuditoriaService;
 use Illuminate\Http\Request;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer;
@@ -168,6 +169,19 @@ class AuditoriaController extends Controller
         }
 
         $w->close();
+
+        AuditoriaService::registrar('auditoria.exportar_excel', 'auditoria', null, [
+            'total_registros' => $registros->count(),
+            'filtros' => array_filter([
+                'q' => $q,
+                'accion' => $accion,
+                'entidad' => $entidad,
+                'usuario_id' => $usuarioId,
+                'desde' => $desde,
+                'hasta' => $hasta,
+            ]),
+            'motivo' => 'Exportación del registro inmutable de auditoría a Excel (Ley N.° 19.628)',
+        ], $request->user()->id);
 
         return response()->download($ruta, 'log_auditoria_caj_'.now()->format('Ymd_His').'.xlsx')->deleteFileAfterSend();
     }

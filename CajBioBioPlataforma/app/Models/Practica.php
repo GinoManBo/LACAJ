@@ -16,8 +16,40 @@ class Practica extends Model
         'remitida_at' => 'datetime', 'nivelada_at' => 'datetime', 'despachada_at' => 'datetime',
         'validada_director_at' => 'datetime', 'firmado_director_general_at' => 'datetime',
         'carta_presentacion_subida_at' => 'datetime',
+        'oficio_daj_fecha' => 'date',
+        'resolucion_anio' => 'integer',
         'nota_practica' => 'float',
     ];
+
+    public function getNumeroRegistroCartaAttribute(): string
+    {
+        if (! empty($this->folio_carta_presentacion)) {
+            return (string) $this->folio_carta_presentacion;
+        }
+
+        return number_format(17400 + $this->id, 0, '', '.');
+    }
+
+    public function getNumeroResolucionCompletoAttribute(): string
+    {
+        $num = $this->resolucion_numero ?: ($this->certificados()->where('tipo', 'resolucion')->value('numero_resolucion') ?? $this->id);
+        $anio = $this->resolucion_anio ?: ($this->certificados()->where('tipo', 'resolucion')->value('anio') ?? now()->year);
+
+        return "{$num}/{$anio}";
+    }
+
+    public function getFolioCajCalculadoAttribute(): string
+    {
+        if (! empty($this->folio_caj)) {
+            return $this->folio_caj;
+        }
+
+        $reg = $this->consultorio?->region?->codigo ?? 'REG';
+        $anio = $this->fecha_inicio ? $this->fecha_inicio->format('Y') : date('Y');
+        $seq = str_pad((string) (17400 + $this->id), 6, '0', STR_PAD_LEFT);
+
+        return "CAJ-{$reg}-{$anio}-{$seq}";
+    }
     public function postulacion() { return $this->belongsTo(Postulacion::class); }
     public function practicante() { return $this->belongsTo(Practicante::class); }
     public function consultorio() { return $this->belongsTo(Consultorio::class); }

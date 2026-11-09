@@ -148,9 +148,23 @@ class TutorController extends Controller
 
         $p = $this->practicas($request)->findOrFail($practica);
 
+        $opcionesValidas = array_keys(Notas::OPCIONES);
         $reglas = ['observaciones' => ['nullable', 'string', 'max:3000']];
         foreach (Notas::CRITERIOS as $clave => $etiqueta) {
-            $reglas[$clave] = ['required'];
+            $reglas[$clave] = ['required', function ($attribute, $value, $fail) use ($opcionesValidas) {
+                $v = str_replace(',', '.', trim((string) $value));
+                if (is_numeric($v)) {
+                    $num = (float) $v;
+                    if ($num < 1.0 || $num > 7.0) {
+                        $fail('Califique este criterio con una nota entre 1.0 y 7.0 o un concepto válido.');
+                    }
+                    return;
+                }
+                $key = strtoupper(str_replace(' ', '_', $v));
+                if (! in_array($key, $opcionesValidas, true) && ! in_array($key, ['MUY_BUENA', 'MUY_BUENO', 'DEFICIENTE'], true)) {
+                    $fail('Califique este criterio con un concepto institucional válido.');
+                }
+            }];
         }
 
         $datos = $request->validate($reglas, [
@@ -210,7 +224,17 @@ class TutorController extends Controller
 
         Auditoria::registrar('practica.segunda_instancia_evaluar', 'practica', $p->id, [
             'concepto' => $opcion['nombre'],
+            'nota' => $opcion['valor'],
             'abogado_id' => $abogado->id,
+            'observaciones' => $datos['observaciones'],
+            'afectado' => [
+                'practicante_id' => $p->practicante_id,
+                'postulante_id' => $p->practicante?->postulante_id,
+                'rut' => $p->practicante?->postulante?->rut,
+                'nombre' => $p->practicante?->postulante?->nombre_completo,
+            ],
+            'postulante_rut' => $p->practicante?->postulante?->rut,
+            'postulante_nombre' => $p->practicante?->postulante?->nombre_completo,
         ], $request->user()->id);
 
         if ($usuarioId = $p->practicante?->usuario_id) {
@@ -254,5 +278,26 @@ class TutorController extends Controller
         abort_unless($doc && Almacenamiento::existe($doc->nombre_almacenado), 404);
 
         return response()->download(Almacenamiento::ruta($doc->nombre_almacenado), $doc->nombre_original, ['Content-Type' => $doc->mime]);
+    }
+
+    /**
+     * Visualiza y descarga la Carta de Presentación Oficial firmada una vez subida por Secretaría.
+     */
+    public function verCartaFirmada(Request $request, int $practica)
+    {
+        $p = $this->practicas($request)->findOrFail($practica);
+
+        if (! $p->carta_presentacion_firmada || ! Almacenamiento::existe($p->carta_presentacion_firmada)) {
+            abort(404, 'La Carta de Presentación firmada aún no ha sido cargada o no está disponible en el servidor.');
+        }
+
+        Auditoria::registrar('practica.ver_carta_firmada', 'practica', $p->id, [
+            'origen' => 'tutor',
+            'rut_postulante' => $p->practicante?->postulante?->rut,
+        ], $request->user()->id);
+
+        return response()->file(Almacenamiento::ruta($p->carta_presentacion_firmada), [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 }

@@ -9,7 +9,21 @@ use Illuminate\Validation\ValidationException;
 
 class Practicas
 {
-    public const MOTIVOS_CANCELACION = ['conducta' => 'Conducta del postulante', 'decision' => 'Decisión del postulante', 'otro' => 'Otro motivo'];
+    public const MOTIVOS_CANCELACION = [
+        'conducta' => 'Conducta del postulante',
+        'decision' => 'Decisión del postulante',
+        'error_registro' => 'Error de registro administrativo',
+        'otro' => 'Otro motivo',
+    ];
+
+    public static function textoMotivoCancelacion(?string $motivo): string
+    {
+        if (! $motivo) {
+            return 'No especificado';
+        }
+
+        return self::MOTIVOS_CANCELACION[$motivo] ?? ucfirst(str_replace('_', ' ', $motivo));
+    }
     public const DIAS_POR_TERMINAR = 14;
 
     /** @return array{total:int, transcurridos:int, restantes:int, porcentaje:int} */

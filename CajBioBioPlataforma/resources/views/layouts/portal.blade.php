@@ -1,6 +1,9 @@
 @php
     $u = Auth::user();
     $noLeidas = \App\Models\Notificacion::where('usuario_destino_id', $u->id)->whereNull('leida_at')->count();
+    $notificacionesRecientes = \App\Models\Notificacion::where('usuario_destino_id', $u->id)->orderByDesc('created_at')->orderByDesc('id')->take(5)->get();
+    $urlLeerTodas = Route::has('notificaciones.leer-todas') ? route('notificaciones.leer-todas') : '';
+    $urlNotificaciones = Route::has('notificaciones.index') ? route('notificaciones.index') : '#';
     $etiquetaAbogado = ($u->rol === 'abogado' && $u->abogado?->es_segunda_instancia)
         ? 'Abogado Jefe 2ª Instancia'
         : 'Abogado Jefe Consultorio';
@@ -135,10 +138,46 @@
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
             <div class="topbar-usuario">
-                <a href="{{ Route::has('notificaciones.index') ? route('notificaciones.index') : '#' }}" class="campana" aria-label="Notificaciones{{ $noLeidas ? ': '.$noLeidas.' sin leer' : '' }}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
-                    @if ($noLeidas > 0)<span class="campana-contador" aria-hidden="true">{{ $noLeidas > 99 ? '99+' : $noLeidas }}</span>@endif
-                </a>
+                <div class="campana-contenedor" id="contenedor-notificaciones">
+                    <button type="button" class="campana" id="btn-campana" aria-label="Notificaciones{{ $noLeidas ? ': '.$noLeidas.' sin leer' : '' }}" aria-expanded="false" aria-haspopup="true" aria-controls="dropdown-notificaciones" data-url-leer="{{ $urlLeerTodas }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+                        @if ($noLeidas > 0)<span class="campana-contador" id="campana-contador" aria-hidden="true">{{ $noLeidas > 99 ? '99+' : $noLeidas }}</span>@endif
+                    </button>
+                    <div class="campana-dropdown" id="dropdown-notificaciones" role="menu" aria-label="Notificaciones recientes" hidden>
+                        <div class="campana-dropdown-cabecera">
+                            <div class="campana-dropdown-titulo">
+                                <strong>Notificaciones</strong>
+                                @if ($noLeidas > 0)
+                                    <span class="campana-dropdown-badge" id="dropdown-badge-noleidas">{{ $noLeidas }} {{ $noLeidas === 1 ? 'nueva' : 'nuevas' }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="campana-dropdown-cuerpo">
+                            @forelse ($notificacionesRecientes as $n)
+                                @php $nueva = is_null($n->leida_at); @endphp
+                                <div class="campana-dropdown-item {{ $nueva ? 'es-nueva' : '' }}">
+                                    <div class="campana-dropdown-item-header">
+                                        <span class="campana-dropdown-punto" aria-hidden="true"></span>
+                                        <span class="campana-dropdown-item-titulo">{{ $n->titulo }}</span>
+                                        <span class="campana-dropdown-fecha">{{ $n->created_at?->diffForHumans(null, true) ?? '' }}</span>
+                                    </div>
+                                    <p class="campana-dropdown-item-msg">{{ \Illuminate\Support\Str::limit($n->mensaje, 90) }}</p>
+                                </div>
+                            @empty
+                                <div class="campana-dropdown-vacio">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+                                    <p>No tienes notificaciones recientes</p>
+                                </div>
+                            @endforelse
+                        </div>
+                        <div class="campana-dropdown-pie">
+                            <a href="{{ $urlNotificaciones }}" class="campana-dropdown-ver-mas">
+                                <span>Ver más</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
                 <div class="usuario-datos">
                     <strong>{{ $u->nombre_completo }}</strong>
                     <span>{{ $etiquetasRol[$u->rol] ?? $u->rol }}@if ($u->region) · {{ $u->region->nombre }}@endif</span>

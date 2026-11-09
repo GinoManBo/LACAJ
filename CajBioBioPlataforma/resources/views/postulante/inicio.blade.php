@@ -4,7 +4,9 @@
 @php
     $nombre = trim($usuario->nombre.' '.$usuario->apellido);
     $estado = $enviada?->estado;
-    $cerrada = in_array($estado, ['rechazada', 'retirada'], true);
+    $pr = $practica ?? $enviada?->practica;
+    $cancelada = $pr && $pr->estado === 'cancelada';
+    $cerrada = in_array($estado, ['rechazada', 'retirada'], true) || $cancelada;
     $mostrarAvance = ! $enviada || ($cerrada && $borrador);
     $completos = max(0, min(4, $siguiente - 1));
     $porcentaje = $completos * 25;
@@ -16,6 +18,7 @@
         'aceptada' => 'Aceptada',
         'rechazada' => 'No aceptada',
         'retirada' => 'Retirada',
+        'cancelada' => 'Práctica Cancelada',
     ];
 @endphp
 
@@ -50,29 +53,57 @@
             <x-tarjeta :acento="true" class="mp-enviada" aria-labelledby="mp-enviada-titulo">
                 <div class="mp-enviada-cab">
                     <h2 id="mp-enviada-titulo">
-                        @if ($enRevision) Tu postulación fue recibida exitosamente y se encuentra en revisión
+                        @if ($cancelada) Tu práctica anterior fue cancelada
+                        @elseif ($enRevision) Tu postulación fue recibida exitosamente y se encuentra en revisión
                         @elseif ($estado === 'aceptada') Tu postulación fue aceptada
                         @elseif ($estado === 'rechazada') Tu postulación no fue aceptada
                         @else Tu postulación fue retirada @endif
                     </h2>
-                    <x-badge :estado="$estado === 'retirada' ? 'finalizada' : $estado" :texto="$mensajes[$estado] ?? ucfirst($estado)" />
+                    <x-badge :estado="$cancelada ? 'cancelada' : ($estado === 'retirada' ? 'finalizada' : $estado)" :texto="$cancelada ? 'Práctica Cancelada' : ($mensajes[$estado] ?? ucfirst($estado))" />
                 </div>
                 <dl class="mp-datos">
-                    <div><dt>Fecha de envío</dt><dd>{{ $enviada->fecha_postulacion?->format('d-m-Y') }}</dd></div>
-                    @if ($enviada->preferencias->isNotEmpty())
-                        <div>
-                            <dt>Consultorios elegidos, por orden de preferencia</dt>
-                            <dd>
-                                <ol class="mp-prefs">
-                                    @foreach ($enviada->preferencias as $p)
-                                        <li><span class="mp-pref-n" aria-hidden="true">{{ $loop->iteration }}</span><span class="mp-pref-nombre">{{ $p->consultorio?->nombre ?? 'Consultorio' }}</span></li>
-                                    @endforeach
-                                </ol>
-                            </dd>
-                        </div>
+                    @if ($cancelada)
+                        @if ($pr->cancelacion_fecha)
+                            <div><dt>Fecha de cancelación</dt><dd class="sec-num">{{ $pr->cancelacion_fecha->format('d-m-Y') }}</dd></div>
+                        @endif
+                        @if ($pr->cancelacion_motivo)
+                            <div><dt>Causal de cancelación</dt><dd><strong>{{ \App\Services\Practicas::MOTIVOS_CANCELACION[$pr->cancelacion_motivo] ?? ucfirst($pr->cancelacion_motivo) }}</strong>@if ($pr->cancelacion_detalle) · {{ $pr->cancelacion_detalle }}@endif</dd></div>
+                        @endif
+                        @if ($pr->consultorio)
+                            <div><dt>Sede asignada anterior</dt><dd>{{ $pr->consultorio->nombre }}</dd></div>
+                        @endif
+                    @else
+                        <div><dt>Fecha de envío</dt><dd>{{ $enviada->fecha_postulacion?->format('d-m-Y') }}</dd></div>
+                        @if ($enviada->preferencias->isNotEmpty())
+                            <div>
+                                <dt>Consultorios elegidos, por orden de preferencia</dt>
+                                <dd>
+                                    <ol class="mp-prefs">
+                                        @foreach ($enviada->preferencias as $p)
+                                            <li>
+                                                <span class="mp-pref-n" aria-hidden="true">{{ $loop->iteration }}</span>
+                                                <span class="mp-pref-nombre">{{ $p->consultorio?->nombre ?? 'Consultorio' }}</span>
+                                                @if ($p->consultorio)
+                                                    <span class="texto-suave" style="font-size:0.85rem;margin-left:0.35rem;">
+                                                        · {{ $p->consultorio->ocupados() }} de {{ $p->consultorio->capacidad }} cupos ocupados
+                                                    </span>
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ol>
+                                </dd>
+                            </div>
+                        @endif
                     @endif
                 </dl>
-                @if ($enRevision)
+                @if ($cancelada)
+                    <p class="texto-suave mp-nota">
+                        Tu práctica anterior fue cancelada y el expediente ha quedado archivado formalmente en el historial institucional sin perderse sus antecedentes. Puedes presentar una nueva postulación cuando desees reiniciar tu práctica profesional.
+                    </p>
+                    @unless ($borrador)
+                        <x-boton tipo="primario" :href="route('postulacion.paso', 1)">Postular nuevamente</x-boton>
+                    @endunless
+                @elseif ($enRevision)
                     <p class="texto-suave mp-nota">No necesitas hacer nada más por ahora. El resultado llegará a tu correo electrónico en un plazo máximo de 15 días hábiles.</p>
                     <div class="mp-editar">
                         <x-boton tipo="secundario" :href="route('postulante.datos')">Editar mis datos</x-boton>

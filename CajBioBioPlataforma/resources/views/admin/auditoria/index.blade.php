@@ -93,7 +93,11 @@
                             str_contains($r->accion, 'cancelar') => '#fee2e2; color:#b91c1c;',
                             str_contains($r->accion, 'modificar') => '#fef3c7; color:#b45309;',
                             str_contains($r->accion, 'validar') || str_contains($r->accion, 'firma') => '#dcfce7; color:#15803d;',
+                            str_contains($r->accion, 'evaluar') || str_contains($r->accion, 'evaluacion') => '#ccfbf1; color:#0f766e;',
                             str_contains($r->accion, 'crear') || str_contains($r->accion, 'creado') => '#e0e7ff; color:#3730a3;',
+                            str_contains($r->accion, 'exportar') => '#fef3c7; color:#92400e;',
+                            str_contains($r->accion, 'descarga') || str_contains($r->accion, 'documento') => '#e0f2fe; color:#0369a1;',
+                            str_contains($r->accion, 'nota') => '#f3e8ff; color:#6b21a8;',
                             default => '#f1f5f9; color:#475569;',
                         };
                     @endphp
