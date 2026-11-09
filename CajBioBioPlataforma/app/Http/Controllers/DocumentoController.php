@@ -6,6 +6,7 @@ use App\Models\Documento;
 use App\Models\Usuario;
 use App\Services\Almacenamiento;
 use App\Services\Auditoria;
+use App\Support\Scope;
 use Illuminate\Http\Request;
 
 class DocumentoController extends Controller
@@ -53,7 +54,8 @@ class DocumentoController extends Controller
 
         return match ($u->rol) {
             'administrador', 'director_general', 'juridica_central' => true,
-            'secretaria', 'director_regional', 'jefe_ucoe' => $u->region_id !== null && $regionDoc === $u->region_id,
+            'secretaria' => Scope::esBiobioCentral($u) || ($u->region_id !== null && $regionDoc === $u->region_id),
+            'director_regional', 'jefe_ucoe' => $u->region_id !== null && $regionDoc === $u->region_id,
             'abogado' => $u->abogado && $practica && ($practica->abogado_id === $u->abogado->id || ($u->abogado->es_segunda_instancia && $regionDoc === $u->abogado->region_id)),
             'practicante', 'postulante' => $this->esDelPracticanteOPostulante($u, $d, $practica),
             default => false,

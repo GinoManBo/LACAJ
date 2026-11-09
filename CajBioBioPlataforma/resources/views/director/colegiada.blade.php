@@ -11,7 +11,7 @@
         <h1 class="titulo-pagina">Distribución de Revisión Colegiada</h1>
         <p class="texto-suave">
             Jefatura de UCOE &bull; Región del Biobío.
-            Asignación equitativa y control de expedientes entre el equipo revisor: don Luis Núñez Oviedo, doña Verónica Cifuentes y doña Graciela Paredes.
+            Asignación equitativa y control de expedientes entre el equipo revisor colegiado de UCOE.
         </p>
     </div>
     <div class="sec-acciones">
@@ -33,9 +33,9 @@
             <select id="revisor" name="revisor" class="campo-control" style="width:100%;">
                 <option value="todos" {{ $revisorFiltro === 'todos' || ! $revisorFiltro ? 'selected' : '' }}>Todos los revisores</option>
                 <option value="sin_asignar" {{ $revisorFiltro === 'sin_asignar' ? 'selected' : '' }}>Sin revisor asignado</option>
-                <option value="Luis Núñez" {{ str_contains((string)$revisorFiltro, 'Luis') ? 'selected' : '' }}>Luis Núñez Oviedo (Jefe UCOE)</option>
-                <option value="Verónica Cifuentes" {{ str_contains((string)$revisorFiltro, 'Verónica') ? 'selected' : '' }}>Verónica Cifuentes</option>
-                <option value="Graciela Paredes" {{ str_contains((string)$revisorFiltro, 'Graciela') ? 'selected' : '' }}>Graciela Paredes</option>
+                @foreach ($revisores as $k => $v)
+                    <option value="{{ $k }}" {{ $revisorFiltro === $k || str_contains((string)$revisorFiltro, $k) ? 'selected' : '' }}>{{ $v }}</option>
+                @endforeach
             </select>
         </div>
         <div style="display:flex; gap:0.5rem;">

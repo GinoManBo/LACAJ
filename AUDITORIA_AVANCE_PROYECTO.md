@@ -1,7 +1,7 @@
 # Auditoría de Avance de Proyecto — Plataforma Inteligente de Gestión y Optimización (CAJ Biobío)
 
 **Fecha de actualización:** 9 de noviembre de 2026  
-**Repositorio auditado:** `CajBioBioPlataforma/` (Laravel 12 / PHP 8.2 / Blade / SQLite)  
+**Repositorio auditado:** `CajBioBioPlataforma/` (Laravel 12 / PHP 8.2 / Blade / MySQL 8.4)  
 **Metodología:** Contraste línea por línea entre el documento de requerimientos integrales (54 puntos verificables + 3 Fases del Camino Alternativo Regional) y el código fuente real tras las refactorizaciones y consolidaciones institucionales implementadas hasta el 9 de noviembre de 2026.
 
 ---

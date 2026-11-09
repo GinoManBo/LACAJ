@@ -25,9 +25,20 @@ final class Scope
 
     public static function esBiobioCentral(Usuario $u): bool
     {
-        return $u->rol === 'juridica_central'
-            || ($u->rol === 'secretaria' && $u->region && $u->region->codigo === 'BI')
-            || $u->rol === 'administrador';
+        if ($u->rol === 'juridica_central' || $u->rol === 'administrador') {
+            return true;
+        }
+
+        if ($u->rol === 'secretaria') {
+            if ($u->region && $u->region->codigo === 'BI') {
+                return true;
+            }
+            if ($u->region_id) {
+                return \App\Models\Region::where('id', $u->region_id)->value('codigo') === 'BI';
+            }
+        }
+
+        return false;
     }
 
     public static function porRegion(Builder $q, Usuario $u, string $columna = 'region_id'): Builder

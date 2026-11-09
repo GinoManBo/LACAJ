@@ -3,7 +3,7 @@
 use App\Http\Controllers\Director\DirectorRegionalController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('director')->name('director.')->middleware('rol:director_regional,jefe_ucoe,administrador,secretaria')->group(function () {
+Route::prefix('director')->name('director.')->middleware('rol:director_regional,jefe_ucoe,administrador')->group(function () {
     Route::get('/', [DirectorRegionalController::class, 'index'])->name('inicio');
     Route::get('/evaluaciones', [DirectorRegionalController::class, 'index'])->name('evaluaciones');
     Route::get('/evaluaciones/{id}', [DirectorRegionalController::class, 'ver'])->whereNumber('id')->name('ver');
