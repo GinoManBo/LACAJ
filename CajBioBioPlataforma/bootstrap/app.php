@@ -17,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $proxies = env('TRUSTED_PROXIES');
         $middleware->trustProxies(
-            at: $proxies ? array_filter(array_map('trim', explode(',', $proxies))) : ['127.0.0.1', '::1'],
+            // Sin TRUSTED_PROXIES se confía en el proxy de la plataforma (Railway).
+            at: $proxies ? array_filter(array_map('trim', explode(',', $proxies))) : '*',
             headers: Request::HEADER_X_FORWARDED_FOR |
                      Request::HEADER_X_FORWARDED_HOST |
                      Request::HEADER_X_FORWARDED_PORT |
