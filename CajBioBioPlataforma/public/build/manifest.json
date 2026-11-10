@@ -1,0 +1,23 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-behFH_W4.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-BnFNswfx.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/postulacion.js": {
+    "file": "assets/postulacion-D8QfDRQm.js",
+    "name": "postulacion",
+    "src": "resources/js/postulacion.js",
+    "isEntry": true
+  }
+}
